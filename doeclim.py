@@ -5,7 +5,7 @@ from scipy import stats
 from scipy import special
 import matplotlib.pyplot as plt
 
-class deoclim:
+class doeclim:
     def __init__ (self, deltat=1, nsteps=1):
         self.ak = 0.31
         self.bk   = 1.59
@@ -164,21 +164,21 @@ class deoclim:
         self.Q0[n-1] = forcing #!-forcing(1)!-1.4D-1!-FORC(1)    !forcing
 
         if (n > 1):
-            self.self.Delself.QL = self.self.QL[n] - self.QL[n-2]
-            self.Delself.Q0 = self.Q0[n-1] - self.Q0[n-2]
-            self.QC[0] = (self.Delself.QL/self.cal*(1./taucfl+1./taukls)-self.bsi*self.DelQ0/cas/taukls)
-            self.QC[1] = (Delself.Q0/cas*(1./taucfs+self.bsi/tauksl)-self.Delself.QL/self.cal/tauksl)
+            self.DelQL = self.QL[n] - self.QL[n-2]
+            self.DelQ0 = self.Q0[n-1] - self.Q0[n-2]
+            self.QC[0] = (self.DelQL/self.cal*(1./self.taucfl+1./self.taukls)-self.bsi*self.DelQ0/self.cas/self.taukls)
+            self.QC[1] = (self.DelQ0/self.cas*(1./self.taucfs+self.bsi/self.tauksl)-self.DelQL/self.cal/self.tauksl)
             self.QC = self.QC* self.deltat**2/12.
             self.DQ[0] = 0.5*self.deltat/self.cal*(self.QL[n-1]+self.QL[n-2])
-            self.DQ[1] = 0.5*self.deltat/cas*(self.Q0[n-1]+self.Q0[n-2])
+            self.DQ[1] = 0.5*self.deltat/self.cas*(self.Q0[n-1]+self.Q0[n-2])
             self.DQ = self.DQ + self.QC
 
 
             for i in range(n-2):
                 self.DPAST[1] = self.DPAST[1]+self.DTE[1,i]*self.Ker[self.nsteps-n+i]
             self.DPAST[1] = self.DPAST[1]*self.fso * np.sqrt(self.deltat/self.taudif)
-            self.DTEAUX[0] = Adoe[0,0]*self.DTE[0,n-2]+Adoe[0,1]*self.DTE[1,n-2]
-            self.DTEAUX[1] = Adoe[1,0]*self.DTE[0,n-2]+Adoe[1,1]*self.DTE[1,n-2]
+            self.DTEAUX[0] = self.Adoe[0,0]*self.DTE[0,n-2]+self.Adoe[0,1]*self.DTE[1,n-2]
+            self.DTEAUX[1] = self.Adoe[1,0]*self.DTE[0,n-2]+self.Adoe[1,1]*self.DTE[1,n-2]
 
             self.DTE[0,n-1] = self.IB[0,0]*(self.DQ[1]+self.DPAST[1]+self.DTEAUX[1])+                  \
                     self.IB[0,1]*(self.DQ[1]+self.DPAST[1]+self.DTEAUX[1])
@@ -187,14 +187,13 @@ class deoclim:
 
             self.temp_landair[n-1] = self.DTE[0,n-1]
             self.temp_sst[n-1] = self.DTE[1,n-1]
-            i += 1
 
 
             self.heatflux_mixed[n-1] = self.cas*( self.DTE[1,n-1]-self.DTE[1,n-2] )
             for i in range(n-2):
-                self.heatflux_interior[n-1] = self.heatflux_interior[n-1]+self.DTE[1,i]*self.Ker(self.nsteps-n+1+i)
+                self.heatflux_interior[n-1] = self.heatflux_interior[n-1]+self.DTE[1,i]*self.Ker[self.nsteps-n+1+i]
 
-            self.heatflux_interior[n-1] = self.cas*self.fso/sqrt(taudif*self.deltat)*(2.*self.DTE[1,n-1] -       \
+            self.heatflux_interior[n-1] = self.cas*self.fso/np.sqrt(self.taudif*self.deltat)*(2.*self.DTE[1,n-1] -       \
                             self.heatflux_interior[n-1])
 
             self.heat_mixed[n-1] = self.heat_mixed[n-2] +self.heatflux_mixed[n-1] *(self.powtoheat*self.deltat)
@@ -229,6 +228,7 @@ class deoclim:
                 for K in range(J+1,N):
                     X[J,I] = X[J,I]-VF[INDX[J],K]*X[K,I]
                 X[J,I] =  X[J,I]/VF[INDX[J],J]
+        return
     
     def ELGS(self, VF,N,INDX):
         C = np.array([0]*N)
@@ -256,3 +256,4 @@ class deoclim:
                 VF[INDX[I],J] = PJ
                 for K in range(J,N):
                     VF[INDX[I],K] = VF[INDX[I],K]-PJ*VF[INDX[J],K]
+        return 
