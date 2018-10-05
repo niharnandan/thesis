@@ -24,6 +24,7 @@ def doeclimF (forcing_total,mod_time, S=3.1, kappa = 3.5):
 
 	# call Fortran DOECLIM
 	# doeclim.so must be already dynamically loaded (see above this function)
+
 	fout =  run_doeclim.run_doeclim(
 			ns = n,
 			time_out = mod_time,
@@ -34,7 +35,7 @@ def doeclimF (forcing_total,mod_time, S=3.1, kappa = 3.5):
 			heatflux_mixed_out = np.array([0]*n),
 			heatflux_interior_out = np.array([0]*n)
 		)
-
+	
 	ocheat = flux_to_heat(fout[0], fout[1])
 	
 	model = {'time': mod_time, 'ocheat': ocheat[0]}

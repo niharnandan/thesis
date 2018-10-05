@@ -99,9 +99,9 @@ class doeclim:
         self.Baux[1,1] = 1. + self.deltat/(2.*self.taucfs) + self.deltat/(2.*self.tauksl)*self.bsi +    \
         2.*self.fso*np.sqrt(self.deltat/self.taudif)
         self.Baux=self.Baux+self.Cdoe
+        self.MIGS(self.Baux, 2, self.IBaux)  #!,indx)
 
-        i = 0
-        while(i < self.nsteps-1):
+        for i in range(self.nsteps-1):
             self.KT0[i] = 4.0*np.sqrt((self.nsteps+1-i)) - 2.*np.sqrt((self.nsteps+2-i))     \
                 - 2.0*np.sqrt((self.nsteps-i))
 
@@ -140,7 +140,7 @@ class doeclim:
             special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps-i))) +                          \
             special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps+2-i))) -                        \
             2.*special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps+1-i))) )
-            i += 1
+			
         self.Ker = self.KT0+self.KTA1+self.KTB1+self.KTA2+self.KTB2+self.KTA3+self.KTB3
 
         self.Adoe[0,0] = 1.0 - self.deltat/(2.*self.taucfl) - self.deltat/(2.*self.taukls)
@@ -201,59 +201,63 @@ class doeclim:
             self.heat_interior[n-1] = self.heat_interior[n-2] + self.heatflux_interior[n-1] *      \
                         (self.fso*self.powtoheat*self.deltat)
 
-        temp = self.flnd*self.temp_landair[n-1] + (1.-self.flnd)*self.bsi*self.temp_sst[n-1]
+            temp = self.flnd*self.temp_landair[n-1] + (1.-self.flnd)*self.bsi*self.temp_sst[n-1]
 
         return
 
     def MIGS(self, FV,N,X):
-        I,J,K = 0,0,0
+	
         self.INDX = np.array([0]*N)
         self.VF, self.B = np.ndarray(shape=(N,N), dtype=float), np.ndarray(shape=(N,N), dtype=float)
         self.VF = FV
-        while(I < N):
-            self.B[I,I] = 1.
-            I += 1
-        self.ELGS(self.VF,N,self.INDX)
-        I = 0
-        while (I < N-1):
+        for  I in range(N):
+            for J in range(N):
+                self.B[I,J] = 0.0
+
+        for I in range (N):
+            self.B[I,I] = 1.0
+
+
+        self.ELGS(N)
+
+        for I in range (N-1):
             for J in range(I,N):
-                while(K < N):
-                    B[INDX[J],K] = B[INDX[J],K]-VF[INDX[J],I]*B[INDX[I],K]
-                K+=1
-            I+=1
+                for K in range (N):
+                    self.B[self.INDX[J],K] = self.B[self.INDX[J],K]-self.VF[self.INDX[J],I]*self.B[self.INDX[I],K]
+
         for I in range(0,N):
-            X[N-1,I] = self.B[INDX[N-1],I]/VF[INDX[N-1],N]
-            for I in range(N-2,-1,-1):
-                X[J,I] = self.B[INDX[J],I]
+            X[N-1,I] = self.B[self.INDX[N-1],I]/(self.VF[self.INDX[N-1],N-1]+0.00001)
+            for J in range(N-2,-1,-1):
+                X[J,I] = self.B[self.INDX[J],I]
                 for K in range(J+1,N):
-                    X[J,I] = X[J,I]-VF[INDX[J],K]*X[K,I]
-                X[J,I] =  X[J,I]/VF[INDX[J],J]
+                    X[J,I] = X[J,I]-self.VF[self.INDX[J],K]*X[K,I]
+                X[J,I] =  X[J,I]/self.VF[self.INDX[J],J]
         return
     
-    def ELGS(self, VF,N,INDX):
+    def ELGS(self,N):
         C = np.array([0]*N)
         for I in range(0,N):
-            INDX[I] = I
+            self.INDX[I] = I
         for I in range(N):
             C1= 0.
             for J in range(N):
-                C1 = max(C1,abs(VF[I,J]))
+                C1 = max(C1,abs(self.VF[I,J]))
             C[I] = C1
 
         for J in range(N-1):
             PI1 = 0.
             for J in range(N):
-                PI = abs(VF[INDX[I],J])/C[INDX[I]]
+                PI = abs(self.VF[self.INDX[I],J])/C[self.INDX[I]]
                 if (PI > PI1):
                     PI1 = PI
                     K   = I
 
-            ITMP    = INDX[J]
-            INDX[J] = INDX[K]
-            INDX[K] = ITMP
+            ITMP    = self.INDX[J]
+            self.INDX[J] = self.INDX[K]
+            self.INDX[K] = ITMP
             for I in range(J,N):
-                PJ  = VF[INDX[I],J]/VF[INDX[J],J]
-                VF[INDX[I],J] = PJ
+                PJ  = self.VF[self.INDX[I],J]/self.VF[self.INDX[J],J]
+                self.VF[self.INDX[I],J] = PJ
                 for K in range(J,N):
-                    VF[INDX[I],K] = VF[INDX[I],K]-PJ*VF[INDX[J],K]
+                    self.VF[self.INDX[I],K] = self.VF[self.INDX[I],K]-PJ*self.VF[self.INDX[J],K]
         return 
