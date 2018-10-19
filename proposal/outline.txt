@@ -1,0 +1,38 @@
+1) motivation
+    * introduce the fact that sea-level modeling is important
+      --> get some figures/projections from IPCC AR5 report
+      --> motivate fact that we care about sea levels
+      --> temperature and CO2 forcing affect projections for sea levels
+    * DOECLIM:  radiative forcing --> temperatures (and ocean heat uptake)
+      --> could have a figure from Kriegler thesis if a good depiction
+    * GMSL:     temperatures --> sea level changes (Rahmstorf 2007 is the reference)
+      --> the two of these combined gives a simplified model for how radiative forcing (CO2 emissions) affect temperatures and sea level projections
+      --> show some of the main equations for each (include some figure)
+
+2) we want good accurate projections, but want to account for uncertainties
+    * motivate the need for model calibration
+      --> Figure: uncalibrated simulation from GMSL model vs obs
+    * talk about MCMC (main equations, what is the model, what is the data, likelihood functions, etc...)
+      --> Figure: uncalibrated simulation from GMSL model vs obs
+                  + calibrated simulations (the entire MCMC ensemble, shaded region for 5-95% credible interval)
+    * show history plots, gelman and rubin diagnostics, ACF
+    * want to be clear that we're only doing GMSL here with a historical temperature data forcing the model
+
+    ** talk about how we've already done this, and what we intend to do **
+    --> want to incorporate temperature uncertainties
+
+3) previous work with DOECLIM+Rahmstorf GMSL model set-up
+      --> figure from Tony
+          MCMC calibration DOECLIM+GMSL emulator, projections of sea-level rise
+    * that work (and all others) assumed the different data sets' errors are independent
+      --> the advance we want to make is accounting for these dependencies, because we know the uncertainties in temp/sea level/ocean heat uptake are correlated
+    * we want to examine how projections in sea level are affected by accounting for/neglecting this uncertainty structure
+
+4) show the likelihood function and the error covariance matrices
+    * we are already using AR1, can show that matrix
+    * what we are using (just one block of AR1 for sea level),
+        and what we want to use to account for temps ocean heat (three blocks of AR1)
+        and what we want to account for the correlated residuals (three blocks, plus off-diagonal components)
+
+5) offer a schedule of when you are going to tick off various waypoints.
+    * timeline, into the spring
