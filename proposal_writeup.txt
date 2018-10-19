@@ -1,0 +1,10 @@
+What we've done so far -
+1. Simple MCMC chain to estimate parameters for any arbitrary dataset.
+2. Built the AR1 matrix . Our chain now has 5 parameters. 
+3. Build the DOECLIM (Diffusion Ocean Energy Climate Model) - converted code from R,Fortran to Python
+
+What we're going to do - 
+1. Change the MCMC model to take in temperatures and output sealevel.
+2. Build a larger AR1 matrix to account for the relation between Sealevel, Ocean heat and Temperature.
+3. 
+
