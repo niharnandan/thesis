@@ -23,22 +23,23 @@ class doeclim:
         self.nsteps = nsteps #???
         self.earth_area = 5100656#???.D8      #[m^2]
         self.secs_per_Year = 3.154e+7
-        self.temp_landair = np.array([0]*self.nsteps)
-        self.temp_sst = np.array([0]*self.nsteps)
-        self.heat_mixed = np.array([0]*self.nsteps)
-        self.heat_interior = np.array([0]*self.nsteps)
-        self.heatflux_mixed = np.array([0]*self.nsteps)
-        self.heatflux_interior = np.array([0]*self.nsteps)
+        self.temp_landair = np.array([0.]*self.nsteps)
+        self.temp_sst = np.array([0.]*self.nsteps)
+        self.heat_mixed = np.array([0.]*self.nsteps)
+        self.heat_interior = np.array([0.]*self.nsteps)
+        self.heatflux_mixed = np.array([0.]*self.nsteps)
+        self.heatflux_interior = np.array([0.]*self.nsteps)
         self.IBaux, self.Baux, self.Cdoe = ([np.ndarray(shape=(2,2), dtype=float)]*3)
-        self.QL, self.Q0 = np.array([0]*self.nsteps), np.array([0]*self.nsteps)
-        self.Ker = np.array([0]*self.nsteps)
+        self.QL, self.Q0 = np.array([0.]*self.nsteps), np.array([0.]*self.nsteps)
+        self.Ker = np.array([0.]*self.nsteps)
         self.ocean_area = (1.-self.flnd)*self.earth_area
-        self.KT0,self.KTA1,self.KTB1,self.KTA2,self.KTB2,self.KTA3,self.KTB3 = ([[0]*self.nsteps]*7)
+        self.KT0,self.KTA1,self.KTB1,self.KTA2,self.KTB2,self.KTA3,self.KTB3 = np.array([0.]*self.nsteps),np.array([0.]*self.nsteps), \
+		np.array([0.]*self.nsteps),np.array([0.]*self.nsteps),np.array([0.]*self.nsteps),np.array([0.]*self.nsteps),np.array([0.]*self.nsteps)
         self.ocean_area = (1.-self.flnd)*self.earth_area
         self.powtoheat = self.ocean_area*self.secs_per_Year / 1.2
         self.cnum= self.rlam*self.flnd + self.bsi * (1.0-self.flnd)
         self.cden = self.rlam * self.flnd - self.ak *(self.rlam-self.bsi)
-        self.taucfl, self.taukls, self.taucfs, self.tauksl, self.taudif, self.taubot = ([0]*6)
+        self.taucfl, self.taukls, self.taucfs, self.tauksl, self.taudif, self.taubot = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         self.IB, self.Adoe = np.ndarray(shape=(2,2), dtype=float), np.ndarray(shape=(2,2), dtype=float)
 
         
@@ -63,7 +64,6 @@ class doeclim:
         self.KT0[self.nsteps-1] = 4.0 - 2.0*np.sqrt(2.0) #4-2*SQRT(2.)
         self.KTA1[self.nsteps-1] = -8.0*np.exp(-self.taubot/self.deltat) + \
                     4.0*np.sqrt(2.0)*np.exp(-0.5*self.taubot/self.deltat)
-
         self.KTB1[self.nsteps-1] = 4*np.sqrt(np.pi*self.taubot/self.deltat) * \
             (1+special.erf(np.sqrt(0.5*self.taubot/self.deltat)) - 2*special.erf(np.sqrt(self.taubot/self.deltat)))
         self.KTA2[self.nsteps-1] =  8*np.exp(-4.*self.taubot/self.deltat) - \
@@ -100,47 +100,45 @@ class doeclim:
         2.*self.fso*np.sqrt(self.deltat/self.taudif)
         self.Baux=self.Baux+self.Cdoe
         self.MIGS(self.Baux, 2, self.IBaux)  #!,indx)
-
-        for i in range(self.nsteps-1):
-            self.KT0[i] = 4.0*np.sqrt((self.nsteps+1-i)) - 2.*np.sqrt((self.nsteps+2-i))     \
-                - 2.0*np.sqrt((self.nsteps-i))
-
+        self.IB = self.IBaux
+        for i in range(1,self.nsteps):
+            self.KT0[i-1] = 4.0*np.sqrt((self.nsteps+1-i)) - 2.*np.sqrt((self.nsteps+2-i)) - 2.0*np.sqrt((self.nsteps-i))
 
 
-            self.KTA1[i] = -8.0*np.sqrt((self.nsteps+1-i)) *                              \
-            np.exp(-self.taubot/self.deltat/(self.nsteps+1-i)) +                                \
-            4.0*np.sqrt((self.nsteps+2-i)) *np.exp(-self.taubot/self.deltat/(self.nsteps+2-i)) +           \
+            self.KTA1[i-1] = -8.0*np.sqrt((self.nsteps+1-i)) * \
+            np.exp(-self.taubot/self.deltat/(self.nsteps+1-i)) + \
+            4.0*np.sqrt((self.nsteps+2-i)) *np.exp(-self.taubot/self.deltat/(self.nsteps+2-i)) + \
             4.0*np.sqrt((self.nsteps-i)) *np.exp(-self.taubot/self.deltat/(self.nsteps-i))
 
-            self.KTB1[i] =  4.0*np.sqrt(np.pi*self.taubot/self.deltat) * (                        \
-            special.erf(np.sqrt(self.taubot/self.deltat/(self.nsteps-i))) +                             \
-            special.erf(np.sqrt(self.taubot/self.deltat/(self.nsteps+2-i))) -                           \
+            self.KTB1[i-1] =  4.0*np.sqrt(np.pi*self.taubot/self.deltat) * ( \
+            special.erf(np.sqrt(self.taubot/self.deltat/(self.nsteps-i))) + \
+            special.erf(np.sqrt(self.taubot/self.deltat/(self.nsteps+2-i))) - \
             2.0*special.erf(np.sqrt(self.taubot/self.deltat/(self.nsteps+1-i))) )
 
 
 
-            self.KTA2[i] =  8.*np.sqrt((self.nsteps+1-i)) *                               \
+            self.KTA2[i-1] =  8.*np.sqrt((self.nsteps+1-i)) *                               \
             np.exp(-4.*self.taubot/self.deltat/(self.nsteps+1-i))- 4.*np.sqrt((self.nsteps+2-i))*           \
             np.exp(-4.*self.taubot/self.deltat/(self.nsteps+2-i))- 4.*np.sqrt((self.nsteps-i)) *            \
             np.exp(-4.*self.taubot/self.deltat/(self.nsteps-i))
 
-            self.KTB2[i] = -8.*np.sqrt(np.pi*self.taubot/self.deltat) * (                         \
+            self.KTB2[i-1] = -8.*np.sqrt(np.pi*self.taubot/self.deltat) * (                         \
             special.erf(2.*np.sqrt(self.taubot/self.deltat/((self.nsteps-i)))) +                          \
             special.erf(2.*np.sqrt(self.taubot/self.deltat/(self.nsteps+2-i))) -                        \
             2.*special.erf(2.*np.sqrt(self.taubot/self.deltat/(self.nsteps+1-i))) )
 
 
 
-            self.KTA3[i] = -8.*np.sqrt((self.nsteps+1-i)) *                              \
+            self.KTA3[i-1] = -8.*np.sqrt((self.nsteps+1-i)) *                              \
             np.exp(-9.*self.taubot/self.deltat/(self.nsteps+1.-i)) + 4.*np.sqrt((self.nsteps+2-i))*        \
             np.exp(-9.*self.taubot/self.deltat/(self.nsteps+2.-i)) + 4.*np.sqrt((self.nsteps-i))*          \
             np.exp(-9.*self.taubot/self.deltat/(self.nsteps-i))
 
-            self.KTB3[i] = 12.*np.sqrt(np.pi*self.taubot/self.deltat) * (                         \
-            special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps-i))) +                          \
-            special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps+2-i))) -                        \
-            2.*special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps+1-i))) )
-			
+            self.KTB3[i-1] = 12.*np.sqrt(np.pi*self.taubot/self.deltat) * (\
+            special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps-i))) + \
+            special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps+2-i))) - \
+            2.*special.erf(3.*np.sqrt(self.taubot/self.deltat/(self.nsteps+1-i))))
+
         self.Ker = self.KT0+self.KTA1+self.KTB1+self.KTA2+self.KTB2+self.KTA3+self.KTB3
 
         self.Adoe[0,0] = 1.0 - self.deltat/(2.*self.taucfl) - self.deltat/(2.*self.taukls)
@@ -151,113 +149,103 @@ class doeclim:
         self.Adoe=self.Adoe+self.Cdoe
         
         return
+        
     
     def doeclimtimestep_simple(self, n, forcing, temp):
-        self.DQ, self.DPAST, self.QC, self.DTEAUX = np.array([0,0]), np.array([0,0]), np.array([0,0]), np.array([0,0])
-        self.DTE = np.ndarray(shape=(2,self.nsteps))
-        self.DelQL, self.DelQ0 = 0,0
-        self.DTE[0,:] = self.temp_landair
-        self.DTE[1,:] = self.temp_sst
+        DQ, DPAST, QC, DTEAUX = np.array([0.,0.]), np.array([0.,0.]), np.array([0.,0.]), np.array([0.,0.])
+        DTE = np.ndarray(shape=(2,self.nsteps))
+        DelQL, DelQ0 = 0.,0.
+        DTE[0,:] = self.temp_landair
+        DTE[1,:] = self.temp_sst
         
+        self.QL[n] = forcing # Timestep n-1 !-forcing(1)!-1.4D-1!-FORC(1)    !forcing 
+        self.Q0[n] = forcing #!-forcing(1)!-1.4D-1!-FORC(1)    !forcing
 
-        self.QL[n-1] = forcing # Timestep n-1 !-forcing(1)!-1.4D-1!-FORC(1)    !forcing 
-        self.Q0[n-1] = forcing #!-forcing(1)!-1.4D-1!-FORC(1)    !forcing
-
-        if (n > 1):
-            self.DelQL = self.QL[n] - self.QL[n-2]
-            self.DelQ0 = self.Q0[n-1] - self.Q0[n-2]
-            self.QC[0] = (self.DelQL/self.cal*(1./self.taucfl+1./self.taukls)-self.bsi*self.DelQ0/self.cas/self.taukls)
-            self.QC[1] = (self.DelQ0/self.cas*(1./self.taucfs+self.bsi/self.tauksl)-self.DelQL/self.cal/self.tauksl)
-            self.QC = self.QC* self.deltat**2/12.
-            self.DQ[0] = 0.5*self.deltat/self.cal*(self.QL[n-1]+self.QL[n-2])
-            self.DQ[1] = 0.5*self.deltat/self.cas*(self.Q0[n-1]+self.Q0[n-2])
-            self.DQ = self.DQ + self.QC
-
-
-            for i in range(n-2):
-                self.DPAST[1] = self.DPAST[1]+self.DTE[1,i]*self.Ker[self.nsteps-n+i]
-            self.DPAST[1] = self.DPAST[1]*self.fso * np.sqrt(self.deltat/self.taudif)
-            self.DTEAUX[0] = self.Adoe[0,0]*self.DTE[0,n-2]+self.Adoe[0,1]*self.DTE[1,n-2]
-            self.DTEAUX[1] = self.Adoe[1,0]*self.DTE[0,n-2]+self.Adoe[1,1]*self.DTE[1,n-2]
-
-            self.DTE[0,n-1] = self.IB[0,0]*(self.DQ[1]+self.DPAST[1]+self.DTEAUX[1])+                  \
-                    self.IB[0,1]*(self.DQ[1]+self.DPAST[1]+self.DTEAUX[1])
-            self.DTE[1,n-1] = self.IB[1,0]*(self.DQ[1]+self.DPAST[1]+self.DTEAUX[1])+                  \
-                    self.IB[1,1]*(self.DQ[1]+self.DPAST[1]+self.DTEAUX[1])
-
-            self.temp_landair[n-1] = self.DTE[0,n-1]
-            self.temp_sst[n-1] = self.DTE[1,n-1]
+        if (n > 0):
+            DelQL = self.QL[n] - self.QL[n-1]
+            DelQ0 = self.Q0[n] - self.Q0[n-1]
+            QC[0] = (DelQL/self.cal*(1./self.taucfl+1./self.taukls)-self.bsi*DelQ0/self.cas/self.taukls)
+            QC[1] = (DelQ0/self.cas*(1./self.taucfs+self.bsi/self.tauksl)-DelQL/self.cal/self.tauksl)
+            QC = QC* self.deltat**2/12.
+            DQ[0] = 0.5*self.deltat/self.cal*(self.QL[n]+self.QL[n-1])
+            DQ[1] = 0.5*self.deltat/self.cas*(self.Q0[n]+self.Q0[n-1])
+            DQ = DQ + QC
 
 
-            self.heatflux_mixed[n-1] = self.cas*( self.DTE[1,n-1]-self.DTE[1,n-2] )
-            for i in range(n-2):
-                self.heatflux_interior[n-1] = self.heatflux_interior[n-1]+self.DTE[1,i]*self.Ker[self.nsteps-n+1+i]
+            for i in range(n):
+                DPAST[1] = DPAST[1]+DTE[1,i]*self.Ker[self.nsteps-n+i-1]
+            DPAST[1] = DPAST[1]*self.fso * np.sqrt(self.deltat/self.taudif)
+            DTEAUX[0] = self.Adoe[0,0]*DTE[0,n-1]+self.Adoe[0,1]*DTE[1,n-1]
+            DTEAUX[1] = self.Adoe[1,0]*DTE[0,n-1]+self.Adoe[1,1]*DTE[1,n-1]
 
-            self.heatflux_interior[n-1] = self.cas*self.fso/np.sqrt(self.taudif*self.deltat)*(2.*self.DTE[1,n-1] -       \
-                            self.heatflux_interior[n-1])
+            DTE[0,n] = self.IB[0,0]*(DQ[0]+DPAST[0]+DTEAUX[0])+ self.IB[0,1]*(DQ[1]+DPAST[1]+DTEAUX[1])
+            DTE[1,n] = self.IB[1,0]*(DQ[0]+DPAST[0]+DTEAUX[0])+ self.IB[1,1]*(DQ[1]+DPAST[1]+DTEAUX[1])
+            self.temp_sst[n] = DTE[1,n]
+            self.temp_landair[n] = DTE[0,n]
+			
+            print(DTE[0,n], DTE[1,n])
+            self.heatflux_mixed[n] = self.cas*( DTE[1,n]-DTE[1,n-1] )
+            for i in range(n):
+                self.heatflux_interior[n] = self.heatflux_interior[n]+DTE[1,i]*self.Ker[self.nsteps-n+i]
 
-            self.heat_mixed[n-1] = self.heat_mixed[n-2] +self.heatflux_mixed[n-1] *(self.powtoheat*self.deltat)
+            self.heatflux_interior[n] = self.cas*self.fso/np.sqrt(self.taudif*self.deltat)*(2.*DTE[1,n] - self.heatflux_interior[n])
+            self.heat_mixed[n] = self.heat_mixed[n-1] +self.heatflux_mixed[n] *(self.powtoheat*self.deltat)
 
-            self.heat_interior[n-1] = self.heat_interior[n-2] + self.heatflux_interior[n-1] *      \
-                        (self.fso*self.powtoheat*self.deltat)
+            self.heat_interior[n] = self.heat_interior[n-1] + self.heatflux_interior[n] * (self.fso*self.powtoheat*self.deltat)
 
-            temp = self.flnd*self.temp_landair[n-1] + (1.-self.flnd)*self.bsi*self.temp_sst[n-1]
+        temp[0] = self.flnd*self.temp_landair[n] + (1.-self.flnd)*self.bsi*self.temp_sst[n]
 
         return
 
     def MIGS(self, FV,N,X):
 	
-        self.INDX = np.array([0]*N)
-        self.VF, self.B = np.ndarray(shape=(N,N), dtype=float), np.ndarray(shape=(N,N), dtype=float)
-        self.VF = FV
-        for  I in range(N):
-            for J in range(N):
-                self.B[I,J] = 0.0
+        INDX = np.array([0]*N)
+        VF, self.B = np.ndarray(shape=(N,N), dtype=float), np.ndarray(shape=(N,N), dtype=float)
+        VF = np.copy(FV)
 
         for I in range (N):
             self.B[I,I] = 1.0
 
 
-        self.ELGS(N)
-
+        self.ELGS(VF,N,INDX)
         for I in range (N-1):
-            for J in range(I,N):
+            for J in range(I+1,N):
                 for K in range (N):
-                    self.B[self.INDX[J],K] = self.B[self.INDX[J],K]-self.VF[self.INDX[J],I]*self.B[self.INDX[I],K]
+                    self.B[INDX[J],K] = self.B[INDX[J],K]-VF[INDX[J],I]*self.B[INDX[I],K]
 
         for I in range(0,N):
-            X[N-1,I] = self.B[self.INDX[N-1],I]/(self.VF[self.INDX[N-1],N-1]+0.00001)
+            X[N-1,I] = self.B[INDX[N-1],I]/(VF[INDX[N-1],N-1])
             for J in range(N-2,-1,-1):
-                X[J,I] = self.B[self.INDX[J],I]
+                X[J,I] = self.B[INDX[J],I]
                 for K in range(J+1,N):
-                    X[J,I] = X[J,I]-self.VF[self.INDX[J],K]*X[K,I]
-                X[J,I] =  X[J,I]/self.VF[self.INDX[J],J]
+                    X[J,I] = X[J,I]-VF[INDX[J],K]*X[K,I]
+                X[J,I] =  X[J,I]/VF[INDX[J],J]
         return
     
-    def ELGS(self,N):
+    def ELGS(self, VF,N,INDX):
         C = np.array([0]*N)
         for I in range(0,N):
-            self.INDX[I] = I
+            INDX[I] = I
         for I in range(N):
             C1= 0.
             for J in range(N):
-                C1 = max(C1,abs(self.VF[I,J]))
+                C1 = max(C1,abs(VF[I,J]))
             C[I] = C1
 
         for J in range(N-1):
             PI1 = 0.
-            for J in range(N):
-                PI = abs(self.VF[self.INDX[I],J])/C[self.INDX[I]]
+            for I in range(J,N):
+                PI = abs(VF[INDX[I],J])/C[INDX[I]]
                 if (PI > PI1):
                     PI1 = PI
                     K   = I
 
-            ITMP    = self.INDX[J]
-            self.INDX[J] = self.INDX[K]
-            self.INDX[K] = ITMP
-            for I in range(J,N):
-                PJ  = self.VF[self.INDX[I],J]/self.VF[self.INDX[J],J]
-                self.VF[self.INDX[I],J] = PJ
-                for K in range(J,N):
-                    self.VF[self.INDX[I],K] = self.VF[self.INDX[I],K]-PJ*self.VF[self.INDX[J],K]
+            ITMP    = INDX[J]
+            INDX[J] = INDX[K]
+            INDX[K] = ITMP
+            for I in range(J+1,N):
+                PJ  = VF[INDX[I],J]/VF[INDX[J],J]
+                VF[INDX[I],J] = PJ
+                for K in range(J+1,N):
+                    VF[INDX[I],K] = VF[INDX[I],K]-PJ*VF[INDX[J],K]
         return 

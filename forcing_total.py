@@ -22,5 +22,5 @@ def forcing_total (forcing, alpha_doeclim, l_project, begyear, endyear,flnd = 0.
 	if(ibeg == iend):
 		print("ERROR - begyear/endyear not within forcing data")
 	forcing_total = forcing_total[ibeg:iend+1]
-
-	return(forcing_total)
+	
+	return(np.array(list(forcing_total)))
