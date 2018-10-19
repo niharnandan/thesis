@@ -6,5 +6,5 @@ What we've done so far -
 What we're going to do - 
 1. Change the MCMC model to take in temperatures and output sealevel.
 2. Build a larger AR1 matrix to account for the relation between Sealevel, Ocean heat and Temperature.
-3. 
+3. We will consider doing AR2 (extra parameter to add to the MCMC chain). Did AR1 because it's the simpler first step. 
 
