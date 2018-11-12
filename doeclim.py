@@ -183,7 +183,6 @@ class doeclim:
             self.temp_sst[n] = DTE[1,n]
             self.temp_landair[n] = DTE[0,n]
 			
-            print(DTE[0,n], DTE[1,n])
             self.heatflux_mixed[n] = self.cas*( DTE[1,n]-DTE[1,n-1] )
             for i in range(n):
                 self.heatflux_interior[n] = self.heatflux_interior[n]+DTE[1,i]*self.Ker[self.nsteps-n+i]
