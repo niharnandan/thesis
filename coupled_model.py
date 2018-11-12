@@ -7,7 +7,10 @@ import gmsl_model
 import os
 import forcing_total
 import doeclimF
-from tqdm import tqdm
+#from tqdm import tqdm
+import sys
+
+NUMBER = int(sys.argv[1])
 
 if not os.path.exists('data/'):
     print("FATAL ERROR: No data directory")
@@ -160,7 +163,7 @@ def chain(parameters, temperatures, deltat, sealevel, sealevel_sigma, N=10000):
 
 parameters = [3.4, -0.5, sealevel[0], 0.5, 3, climate_sensitivity, ocean_vertical_diffusivity, aerosol_scaling, T_0]
 deltat = 1
-mcmc_chain,accept_rate = chain(parameters, temperatures, deltat, sealevel, sealevel_sigma, N=1000)
+mcmc_chain,accept_rate = chain(parameters, temperatures, deltat, sealevel, sealevel_sigma, N=NUMBER)
 
 for i in range(9):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
