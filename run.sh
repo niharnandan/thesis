@@ -1,4 +1,4 @@
 #!/bin/sh
 
-python coupled_model.py 1000
+python coupled_model.py 200000
 
