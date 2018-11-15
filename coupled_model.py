@@ -40,29 +40,37 @@ forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=aeroso
 doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=climate_sensitivity, kappa=ocean_vertical_diffusivity)
 temperatures = (doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), "temp"]).tolist()
 	
-def update_cov(X, s_d):
+def update_cov(X, s_d, size):
     cov = np.cov([X[:,0],X[:,1],X[:,2],X[:,3],X[:,4],X[:,5],X[:,6],X[:,7],X[:,8]])
     eps = 0.0001
-    I_d = np.identity(9)
+    I_d = np.identity(size)
     return s_d*cov + I_d*eps*s_d
 #Online update 
 
 def prior(theta, sealevel_0, unc_0):
-    log_prior = 0
-    #unpacking the variables individually for clarity
-    alpha, Teq, S0, rho, sigma_ar = (
-        theta[0], theta[1], theta[2], theta[3], theta[4])
-    log_prior += stats.uniform.logpdf(alpha, loc = 0, scale = 5) #lb and ub?
-    log_prior += stats.uniform.logpdf(Teq, loc=-1, scale = 2)
-    log_prior += stats.norm.logpdf(S0, loc = sealevel_0, scale = unc_0)
-    log_prior += stats.uniform.logpdf(rho, loc = 0, scale = 1)
-    log_prior += stats.uniform.logpdf(sigma_ar, loc = 0, scale = 5)
-    log_prior += stats.uniform.logpdf(theta[5], loc = 0.1, scale = 9.9)
-    log_prior += stats.uniform.logpdf(theta[6], loc = 0.1, scale = 3.9)
-    log_prior += stats.uniform.logpdf(theta[7], loc = 0, scale = 2)
-    log_prior += stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
-
-    return log_prior
+	log_prior = 0
+	#unpacking the variables individually for clarity
+	alpha, Teq, S0, rho, sigma_ar = (
+		theta[0], theta[1], theta[2], theta[3], theta[4])
+	if (len(theta) >= 1):
+		log_prior += stats.uniform.logpdf(alpha, loc = 0, scale = 5) #lb and ub?
+	if (len(theta) >=  2):
+		log_prior += stats.uniform.logpdf(Teq, loc=-1, scale = 2)
+	if (len(theta) >=  3):
+		log_prior += stats.norm.logpdf(S0, loc = sealevel_0, scale = unc_0)
+	if (len(theta) >=  4):
+		log_prior += stats.uniform.logpdf(rho, loc = 0, scale = 1)
+	if (len(theta) >=  5):
+		log_prior += stats.uniform.logpdf(sigma_ar, loc = 0, scale = 5)
+	if (len(theta) >=  6):
+		log_prior += stats.uniform.logpdf(theta[5], loc = 0.1, scale = 9.9)
+	if (len(theta) >=  7):
+		log_prior += stats.uniform.logpdf(theta[6], loc = 0.1, scale = 3.9)
+	if (len(theta) >=  8):
+		log_prior += stats.uniform.logpdf(theta[7], loc = 0, scale = 2)
+	if (len(theta) >=  9):
+		log_prior += stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
+	return log_prior
 
 def logp(theta, sealevel, deltat, temperatures, model, sigma=sealevel_sigma):
     N = len(sealevel)
@@ -132,17 +140,23 @@ def chain(parameters, temperatures, deltat, sealevel, sealevel_sigma, N=10000):
     lp = logp(theta, sealevel, deltat, temperatures, model, sigma=sealevel_sigma)
     theta_best = theta
     lp_max = lp
-    theta_new = [0.] * 9
+    theta_new = [0.] * len(parameters)
     accepts = 0
-    mcmc_chains = np.array([[0., 0., 0., 0., 0., 0., 0., 0., 0.]] * N)
-    step = np.array([[.01,0,0,0,0,0,0,0,0], [0,.05,0,0,0,0,0,0,0], [0,0,5,0,0,0,0,0,0], [0,0,0,0.001,0,0,0,0,0],[0,0,0,0,0.1,0,0,0,0],
-					 [0,0,0,0,0,0.16,0,0,0], [0,0,0,0,0,0,0.17,0,0], [0,0,0,0,0,0,0,0.025,0],[0,0,0,0,0,0,0,0,0.03]])
+    mcmc_chains = np.array([np.zeros(len(parameters))] * N)
+    stepsizes = [.01, .05, 5, .001, .1, 0.16, 0.17, 0.025, 0.03]
+    step = []
+    for i in range(len(parameters)):
+        temp = [0]*len(parameters)
+        temp[i] = stepsizes[i]
+        step.append(temp)
+    step = np.array(step)
+    #step = np.array([[.01,0,0,0,0,0,0,0,0], [0,.05,0,0,0,0,0,0,0], [0,0,5,0,0,0,0,0,0], [0,0,0,0.001,0,0,0,0,0],[0,0,0,0,0.1,0,0,0,0],
+	#				 [0,0,0,0,0,0.16,0,0,0], [0,0,0,0,0,0,0.17,0,0], [0,0,0,0,0,0,0,0.025,0],[0,0,0,0,0,0,0,0,0.03]])
     sd = 2.38**2 / len(theta)
-    initial_burn = 20000
 	#Check if converged. If not keep running. 
     print(N)
     for i in range(N):
-        if i > 500: step = update_cov(mcmc_chains[:i], sd)
+        if i > 500: step = update_cov(mcmc_chains[:i], sd, len(parameters))
         theta_new = list(np.random.multivariate_normal(theta, step))
         coupled_model(forcingtotal, doeclim_out, temperatures, model, parameters, mod_time, T_0)
 		#Separate above 3 lines + T_0 into a new file. 
@@ -165,14 +179,20 @@ parameters = [3.4, -0.5, sealevel[0], 0.5, 3, climate_sensitivity, ocean_vertica
 deltat = 1
 mcmc_chain,accept_rate = chain(parameters, temperatures, deltat, sealevel, sealevel_sigma, N=NUMBER)
 
-for i in range(9):
+for i in range(len(parameters)):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.plot(mcmc_chain[:,i])
 	fig.savefig('image/plot'+str(i+1)+'.png')   # save the figure to file
 	plt.close(fig)
+
+for i in range(len(parameters)):
+	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
+	ax.hist(mcmc_chain[:,i], density = True, facecolor='green', alpha=0.5, bins = 20, edgecolor = 'white')
+	fig.savefig('image/hist'+str(i+1)+'.png')   # save the figure to file
+	plt.close(fig)
 	
 '''TO-DO
-	Switch for parameters
+	Switch for parameters - DONE
 	Make histogram for each parameter (USE SUPERCOMPUTER)
 	Compare to paper sent from Tony
 	Use PYMC3 package.
