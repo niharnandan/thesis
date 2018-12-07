@@ -41,7 +41,7 @@ doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=climate_sensitivity, k
 temperatures = (doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), "temp"]).tolist()
 	
 def update_cov(X, s_d, size):
-    cov = np.cov([X[:,0],X[:,1],X[:,2],X[:,3],X[:,4],X[:,5],X[:,6],X[:,7],X[:,8]])
+    cov = np.cov([X[:,0],X[:,1],X[:,2],X[:,3],X[:,4],X[:,5],X[:,6],X[:,7],X[:,8],X[:,9],X[:,10]])
     eps = 0.0001
     I_d = np.identity(size)
     return s_d*cov + I_d*eps*s_d
@@ -90,7 +90,7 @@ def logp(theta, sealevel, deltat, temperatures, model, pamnames, sigma=sealevel_
 	t_residual = dfTemperature - temperatures
 
 	sigma_ar1_T = build_ar1(theta[9], theta[9], N) if ('sigma_T' in pamnames) else []
-
+	sigma_ar1_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
 	log_prior = prior(theta, sealevel[0], sealevel_sigma[0], pamnames)
 	if np.isinf(log_prior): return -np.inf
 	
