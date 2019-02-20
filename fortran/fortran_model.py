@@ -4,8 +4,9 @@ import time
 import forcing_total
 import pandas as pd
 import numpy as np
+import forcing_total
 
-def doeclim_gmsl(forcingtotal, mod_time, asc = 1.1, t2co_in= 3.1, \
+def doeclim_gmsl(asc = 1.1, t2co_in= 3.1, \
 kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0):
 	fortran = CDLL('./doeclim_gmsl.so')
 	fortran.run_doeclim_gmsl.argtypes = [
@@ -22,6 +23,9 @@ kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0):
 	POINTER(c_double),
 	POINTER(c_double)
 	]
+	forcing = pd.read_csv( 'data/forcing_hindcast.csv')
+	mod_time = np.array(forcing['year'])
+	forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=asc, l_project=False, begyear=mod_time[0], endyear=np.max(mod_time)))
 
 	n = len(mod_time)
 
@@ -54,12 +58,12 @@ kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0):
 
 	return (temp_out[-130:-1], heatflux_mixed_out[-130:-1], heatflux_interior_out[-130:-1], gmsl_out[-130:-1])
 
-forcing = pd.read_csv('../data/forcing_hindcast.csv')
-mod_time = np.array(forcing['year'])
-forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, \
-alpha_doeclim=1.1, l_project = False, begyear = mod_time[0], endyear = np.max(mod_time)))
+#forcing = pd.read_csv('../data/forcing_hindcast.csv')
+#mod_time = np.array(forcing['year'])
+#forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, \
+#alpha_doeclim=1.1, l_project = False, begyear = mod_time[0], endyear = np.max(mod_time)))
 	
-for i in range(10000):
-	temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-	doeclim_gmsl(forcingtotal, mod_time, asc = 1.1, t2co_in = 3.1, kappa_in=3.5, alphasl_in = 3.4, Teq = -0.5, SL0 = -100) 
+#for i in range(10000):
+#	temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
+#	doeclim_gmsl(asc = 1.1, t2co_in = 3.1, kappa_in=3.5, alphasl_in = 3.4, Teq = -0.5, SL0 = -100) 
 		

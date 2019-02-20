@@ -10,6 +10,7 @@ COLORS = ["skyblue", "steelblue", "gray"]
 ALPHAS = [1.0, 1.0, 0.45]
 #from tqdm import tqdm
 from fortran_model import doeclim_gmsl
+
 import sys
 import os
 
@@ -53,9 +54,10 @@ class CoupledModel:
 		self.year = (dfSealevel.loc[(dfSealevel["year"] >= 1880) & (dfSealevel["year"]<=2009), "year"]).tolist()
 		self.sealevel_sigma = (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "uncertainty"]).tolist()
 		self.dfTemperature = dfTemperature.loc[(dfTemperature["Time"] <= 2008) & (dfTemperature["Time"] >= 1880), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"] - dfTemperature.loc[(dfTemperature["Time"] <= 1990) & (dfTemperature["Time"] >= 1961), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"].mean()
-		forcing = pd.read_csv( 'data/forcing_hindcast.csv')
-		self.mod_time = forcing['year']
-		
+		#forcing = pd.read_csv( 'data/forcing_hindcast.csv')
+		#self.mod_time = np.array(forcing['year'])
+		#self.forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=self.asc, l_project=False, begyear=self.mod_time[0], endyear=np.max(self.mod_time)))
+
 		self.alpha = parameter('alpha')
 		self.alpha.value = values[self.alpha.name]
 		self.Teq = parameter('Teq')
@@ -91,7 +93,7 @@ class CoupledModel:
 		I_d = np.identity(size)
 		return s_d*cov + I_d*eps*s_d
 
-	def prior(self, theta, sealevel_0, unc_0):
+	def prior(self, theta):
 
 		#unpacking the variables individually for clarity
 
@@ -99,16 +101,17 @@ class CoupledModel:
 			theta[0], theta[1], theta[2], theta[3], theta[4])
 		log_prior = 0
 		if (self.alpha.value): log_prior += stats.uniform.logpdf(alpha, loc = 0, scale = 5) #lb and ub?
-		if (self.Teq.value): log_prior += stats.uniform.logpdf(Teq, loc=-3, scale = 4)
-		if (self.S0.value): log_prior += stats.norm.logpdf(S0, loc = sealevel_0, scale = unc_0)
-		if (self.rho.value): log_prior += stats.uniform.logpdf(rho, loc = 0, scale = 1)
-		if (self.sigma_ar.value): log_prior += stats.uniform.logpdf(sigma_ar, loc = 0, scale = 5)
-		if (self.climate_sensitivity.value): log_prior += stats.uniform.logpdf(theta[5], loc = 0.1, scale = 9.9)
-		if (self.ocean_vertical_diffusivity.value): log_prior += stats.uniform.logpdf(theta[6], loc = 0.1, scale = 3.9)
-		if (self.aerosol_scaling.value): log_prior += stats.uniform.logpdf(theta[7], loc = 0, scale = 2)
-		if (self.T_0.value): log_prior += stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
-		if (self.sigma_T.value): log_prior += stats.uniform.logpdf(theta[9], loc = 0.05, scale = 5.05)
-		if (self.rho_T.value): log_prior += stats.uniform.logpdf(theta[10], loc =  0, scale = 0.999)
+		if (self.Teq.value): log_prior +=  stats.uniform.logpdf(Teq, loc=-3, scale = 4)
+		if (self.S0.value): log_prior +=  stats.norm.logpdf(S0, loc = self.sealevel[0], scale = self.sealevel_sigma[0])
+		if (self.rho.value): log_prior +=  stats.uniform.logpdf(rho, loc = 0, scale = 1)
+		if (self.sigma_ar.value): log_prior +=  stats.uniform.logpdf(sigma_ar, loc = 0, scale = 5)
+		if (self.climate_sensitivity.value): log_prior +=  stats.uniform.logpdf(theta[5], loc = 0.1, scale = 9.9)
+		if (self.ocean_vertical_diffusivity.value): log_prior +=  stats.uniform.logpdf(theta[6], loc = 0.1, scale = 3.9)
+		if (self.aerosol_scaling.value): log_prior +=  stats.uniform.logpdf(theta[7], loc = 0, scale = 2)
+		if (self.T_0.value): log_prior +=  stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
+		if (self.sigma_T.value): log_prior +=  stats.uniform.logpdf(theta[9], loc = 0.05, scale = 5.05)
+		if (self.rho_T.value): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0.0001, scale = 0.999)
+		#print(log_prior)
 		return log_prior
 
 	def build_ar1(self, rho, sigma_ar, length):
@@ -134,20 +137,42 @@ class CoupledModel:
 
 		sigma_ar1_T = self.build_ar1(theta[10], theta[9], N) if self.sigma_T.value else []
 		sigma_ar1_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
-		log_prior = self.prior(theta, self.sealevel[0], self.sealevel_sigma[0])
+		log_prior = self.prior(theta)
 		if np.isinf(log_prior): return -np.inf
 		
-		cov = np.add(sigma_obs,sigma_ar1)
-		cov = np.multiply((np.transpose(cov) + cov), 1/2)
+		#cov = np.add(sigma_obs,sigma_ar1)
+		#cov = np.multiply((np.transpose(cov) + cov), 1/2)
+		cov = sigma_obs
+		log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
 		
-		log_likelihood = stats.multivariate_normal.logpdf(resid, cov=cov) if model else 0
-		
-		log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, cov=sigma_ar1_T) if self.sigma_T.value else 0
-		log_posterior = log_likelihood + log_prior + log_likelihood_T
+		cov_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
+
+		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean=None, cov=cov_T)
+		log_posterior = log_likelihood + log_prior #+ log_likelihood_T
 		return log_posterior
+
+	def update_mean(self, m, X):
+		N = len(X[0])
+		n = []
+		for i in range(len(m)):
+			n.append([(m[i][0]*(N-1) + X[i][-1])/N])
+		return np.array(n)
+
+	def update_cov1(self, X, m, Ct, Sd, Id, eps):
+		m1 = update_mean(m, X)
+		t = len(X[0])-1
+		part1 = ((t-1)/t)*Ct
+		part2 = t*np.matmul(m, np.transpose(m))
+		part3 = (t+1)*np.matmul(m1, np.transpose(m1))
+		Xt = []
+		Xt.append(X[:,-1])
+		part4 = np.matmul(np.transpose(Xt), Xt)
+		part5 = eps*Id
+		cov = part1 + (Sd/t)*(part2 - part3 + part4 + part5)
+		return 0.5*(cov + np.transpose(cov)), m1
 	
 	def chain(self, deltat, N=10000):
-		
+		print(self.sealevel_sigma)
 		parameters = self.values.values()
 		parameters = list(filter(lambda a: a != 0, parameters))
 		self.num = len(parameters)
@@ -162,40 +187,38 @@ class CoupledModel:
 		lp_max = lp
 		theta_new = [0.] * len(parameters)
 		accepts = 0
-		mcmc_chains = np.array([np.zeros(len(parameters))] * N)
+		mcmc_chains = np.zeros((N, (len(parameters))))
 		step = []
-		count = 0
-		temp = self.stepsizes.values()
-		for i in range(len(parameters)):
-			temp = [0]*(len(parameters))
-			temp[count] = temp[i]
-			count += 1
-			step.append(temp)
-		step = np.array(step)
+		step_values = list(self.stepsizes.values())
+		step = np.diag(step_values)
 		sd = 2.38**2 / len(theta)
+
+		#step = 0.5 * (step + step.T)
+
 		#Check if converged. If not keep running. 
 		print(N)
-		print(theta)
 		for i in (range(N)):
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(parameters))
 			theta_new = list(np.random.multivariate_normal(theta, step))
-			if len(parameters) > 10: 
-				temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-				doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
-
+			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
+			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+			temp_out += theta[8]
 			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out)
+			if np.isinf(lp_new): continue
 			lq = lp_new - lp
 			
 			lr = np.log(np.random.uniform(0, 1))
+			print(lq)
 			#print(lr, lq)
 			if (lr < lq):
 				theta = theta_new
+				print('NEW VALUE!')
 				lp = lp_new
 				accepts += 1
 				if lp > lp_max:
 					theta_best = theta
 					lp_max = lp
-			mcmc_chains[i] = theta
+			mcmc_chains[i,:] = theta
 
 		return mcmc_chains,accepts/N*100
 
