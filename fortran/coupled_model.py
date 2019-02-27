@@ -158,9 +158,9 @@ class CoupledModel:
 			n.append([(m[i][0]*(N-1) + X[i][-1])/N])
 		return np.array(n)
 
-	def update_cov1(self, X, m, Ct, Sd, Id, eps):
+	def update_cov1(self, X, m, Ct, Sd, eps, size, t):
+		Id = np.identity(size)
 		m1 = update_mean(m, X)
-		t = len(X[0])-1
 		part1 = ((t-1)/t)*Ct
 		part2 = t*np.matmul(m, np.transpose(m))
 		part3 = (t+1)*np.matmul(m1, np.transpose(m1))
