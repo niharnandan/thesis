@@ -199,7 +199,8 @@ class CoupledModel:
 			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
 			temp_out += theta[8]
 			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out)
-			if np.isinf(lp_new): 
+			if np.isinf(lp_new):
+				mcmc_chains[i,:] = theta
 				continue
 			lq = lp_new - lp
 			
@@ -229,6 +230,8 @@ mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0', 'sigma_T', 'rho_T']
 
+#print(mcmc_chain[:200,0])
+
 for i in range(11):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
@@ -242,4 +245,3 @@ for i in range(11):
 	ax.set_title(pamnames[i])
 	fig.savefig('image/hist'+str(i+1)+'.png')   # save the figure to file
 	plt.close(fig)
-
