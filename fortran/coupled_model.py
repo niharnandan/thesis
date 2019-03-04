@@ -69,25 +69,28 @@ class CoupledModel:
 		#self.sigma_ar = parameter('sigma_ar')
 		self.sigma_ar = values[4]
 		#self.climate_sensitivity = parameter('climate_sensitivity')
-		self.climate_sensitivity = values[5]
+		self.climate_sensitivity = values[3]
 		#self.ocean_vertical_diffusivity = parameter('ocean_vertical_diffusivity')
-		self.ocean_vertical_diffusivity = values[6]
+		self.ocean_vertical_diffusivity = values[4]
 		#self.aerosol_scaling = parameter('aerosol_scaling')
-		self.aerosol_scaling = values[7]
+		self.aerosol_scaling = values[5]
 		#self.T_0 = parameter('T_0')
-		self.T_0 = values[8]
+		self.T_0 = values[6]
 		#self.sigma_T = parameter('sigma_T')
 		self.sigma_T = values[9]
 		#self.rho_T = parameter('rho_T')
 		self.rho_T = values[10]
 		self.values = values
-		self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'rho': .001, 'sigma_ar': .1, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03, 'sigma_T': 5e-4, 'rho_T': 0.007}
+		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'rho': .001, 'sigma_ar': .1, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03, 'sigma_T': 5e-4, 'rho_T': 0.007}
+		self.stepsizes = [ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007]		
+		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03}
 		
 	def update_cov(self, X, s_d, size):
-		a = []
-		for i in range(size):
-			a.append(X[:,i])
-		a = np.array(a)
+		#a = []
+		#for i in range(size):
+		#	a.append(X[:,i])
+		a = np.array(X)
+		a = a.T
 		cov = np.cov(a)
 		eps = 0.0001
 		I_d = np.identity(size)
@@ -125,17 +128,22 @@ class CoupledModel:
 
 	def logp(self, theta, deltat, temperatures, model):
 
+
+		log_prior = self.prior(theta)
+		return log_prior 
 		N = len(self.sealevel)
-		alpha, Teq, S0, rho, sigma_ar = (
-		theta[0], theta[1], theta[2], theta[3], theta[4])
+		alpha, Teq, S0 = (
+		theta[0], theta[1], theta[2])
+		rho, sigma_ar = 0.5, 3
+		rho_t, sigma_t = 0.55, 1
 		resid = np.array([self.sealevel[i] - model[i] for i in range(len(model))])
 
 		sigma_obs = np.diag([i**2 for i in self.sealevel_sigma])
-		sigma_ar1 = self.build_ar1(rho, sigma_ar, N) if self.sigma_ar else []
+		sigma_ar1 = self.build_ar1(rho, sigma_ar, N) 
 
 		t_residual = self.dfTemperature - temperatures
 
-		sigma_ar1_T = self.build_ar1(theta[10], theta[9], N) if self.sigma_T else []
+		sigma_ar1_T = self.build_ar1(rho_t, sigma_t, N)
 		sigma_ar1_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
 		log_prior = self.prior(theta)
 		if np.isinf(log_prior): return -np.inf
@@ -175,7 +183,7 @@ class CoupledModel:
 		theta = np.array(self.values)
 		print('Initial estimate for parameters -', theta)
 		temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[8], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
 		temp_out += self.T_0
 
 		lp = self.logp(theta, deltat, temp_out, gmsl_out)
@@ -184,20 +192,22 @@ class CoupledModel:
 		theta_new = [0.] * len(theta)
 		accepts = 0
 		mcmc_chains = np.zeros((N, (len(theta))))
-		step_values = list(self.stepsizes.values())
-		step = np.diag(step_values)
+		step = np.diag(self.stepsizes)
 		sd = 2.38**2 / len(theta)
-
-		#step = 0.5 * (step + step.T)
+		#step = 0.5 * step
 
 		#Check if converged. If not keep running. 
 		print(N)
 		for i in (range(N)):
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
 			theta_new = list(np.random.multivariate_normal(theta, step))
+			#theta_new[3] = 0.5			
+			#theta_new[4] = 3
+			#theta_new[9] = 0.1			
+			#theta_new[10] = 0.55
 			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
-			temp_out += theta[8]
+			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[8], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+			temp_out += theta[6]
 			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out)
 			if np.isinf(lp_new):
 				mcmc_chains[i,:] = theta
@@ -208,7 +218,6 @@ class CoupledModel:
 			#print(lr, lq)
 			if (lr < lq):
 				theta = theta_new
-				print('NEW VALUE!')
 				lp = lp_new
 				accepts += 1
 				if lp > lp_max:
@@ -223,12 +232,14 @@ class CoupledModel:
 #'aerosol_scaling': 1.1, 'T_0': -0.06, 'sigma_T': 0.1, 'rho_T': 0.55}
 
 values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55]
+#values = [3.4, -0.5, -100, 3.1, 3.5, 1.1, -0.06]
 
 CM = CoupledModel(values)
 
 mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0', 'sigma_T', 'rho_T']
+#pamnames = ['alpha', 'Teq', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0']
 
 #print(mcmc_chain[:200,0])
 
