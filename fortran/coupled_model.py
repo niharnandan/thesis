@@ -69,13 +69,13 @@ class CoupledModel:
 		#self.sigma_ar = parameter('sigma_ar')
 		self.sigma_ar = values[4]
 		#self.climate_sensitivity = parameter('climate_sensitivity')
-		self.climate_sensitivity = values[3]
+		self.climate_sensitivity = values[5]
 		#self.ocean_vertical_diffusivity = parameter('ocean_vertical_diffusivity')
-		self.ocean_vertical_diffusivity = values[4]
+		self.ocean_vertical_diffusivity = values[6]
 		#self.aerosol_scaling = parameter('aerosol_scaling')
-		self.aerosol_scaling = values[5]
+		self.aerosol_scaling = values[7]
 		#self.T_0 = parameter('T_0')
-		self.T_0 = values[6]
+		self.T_0 = values[8]
 		#self.sigma_T = parameter('sigma_T')
 		self.sigma_T = values[9]
 		#self.rho_T = parameter('rho_T')
@@ -86,9 +86,6 @@ class CoupledModel:
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03}
 		
 	def update_cov(self, X, s_d, size):
-		#a = []
-		#for i in range(size):
-		#	a.append(X[:,i])
 		a = np.array(X)
 		a = a.T
 		cov = np.cov(a)
@@ -112,8 +109,8 @@ class CoupledModel:
 		if (self.ocean_vertical_diffusivity): log_prior +=  stats.uniform.logpdf(theta[6], loc = 0.1, scale = 3.9)
 		if (self.aerosol_scaling): log_prior +=  stats.uniform.logpdf(theta[7], loc = 0, scale = 2)
 		if (self.T_0): log_prior +=  stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
-		if (self.sigma_T): log_prior +=  stats.uniform.logpdf(theta[9], loc = 0.05, scale = 5.05)
-		if (self.rho_T): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0.0001, scale = 0.999)
+		if (self.sigma_T): log_prior +=  stats.uniform.logpdf(theta[9], loc = 0.05, scale = 4.95)
+		if (self.rho_T): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0, scale = 0.999)
 		#print(log_prior)
 		return log_prior
 
@@ -178,6 +175,17 @@ class CoupledModel:
 		part5 = eps*Id
 		cov = part1 + (Sd/t)*(part2 - part3 + part4 + part5)
 		return 0.5*(cov + np.transpose(cov)), m1
+
+	def diagnostic(self, mcmc_chains):
+		N = len(mcmc_chains[0])
+		m = len(mcmc_chains)
+		s_j = [np.var(mcmc_chains[i]) for i in range(m)]
+		W = 1 / m * np.sum(s_j)
+		global_mean = np.mean([np.mean(mcmc_chains[i]) for i in range(m)])
+		B = N / (m - 1) * np.sum([(np.mean(mcmc_chains[i]) - global_mean)**2
+				      for i in range(m)])
+		Var = (1 - 1/N)*W + 1/N*B
+		return np.sqrt(Var/W)
 	
 	def chain(self, deltat, N=10000):
 		theta = np.array(self.values)
@@ -207,7 +215,7 @@ class CoupledModel:
 			#theta_new[10] = 0.55
 			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
 			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[8], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
-			temp_out += theta[6]
+			temp_out += theta[8]
 			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out)
 			if np.isinf(lp_new):
 				mcmc_chains[i,:] = theta
@@ -237,11 +245,19 @@ values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55]
 CM = CoupledModel(values)
 
 mcmc_chain,accept_rate = CM.chain(1, NUMBER)
-
+print(accept_rate)
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0', 'sigma_T', 'rho_T']
 #pamnames = ['alpha', 'Teq', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0']
 
 #print(mcmc_chain[:200,0])
+
+if NUMBER >= 50000:
+	temp_chain1 = mcmc_chain[30000:40000]
+	temp_chain2 = mcmc_chain[40000:]
+	conv = CM.diagnostic([temp_chain1, temp_chain2])
+	mcmc_chain = mcmc_chain[40000:]
+
+print(conv)
 
 for i in range(11):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
