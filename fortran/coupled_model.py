@@ -80,9 +80,11 @@ class CoupledModel:
 		self.sigma_T = values[9]
 		#self.rho_T = parameter('rho_T')
 		self.rho_T = values[10]
+		self.sigmatsl = values[11]
 		self.values = values
+		self.time = len(self.year)
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'rho': .001, 'sigma_ar': .1, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03, 'sigma_T': 5e-4, 'rho_T': 0.007}
-		self.stepsizes = [ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007]		
+		self.stepsizes = [ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007, 0.01]		
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03}
 		
 	def update_cov(self, X, s_d, size):
@@ -129,31 +131,35 @@ class CoupledModel:
 		log_prior = self.prior(theta)
 		return log_prior 
 		N = len(self.sealevel)
-		alpha, Teq, S0 = (
-		theta[0], theta[1], theta[2])
-		rho, sigma_ar = 0.5, 3
-		rho_t, sigma_t = 0.55, 1
+		#rho, sigma_ar = 0.5, 3
+		#rho_t, sigma_t = 0.55, 1
 		resid = np.array([self.sealevel[i] - model[i] for i in range(len(model))])
 
 		sigma_obs = np.diag([i**2 for i in self.sealevel_sigma])
-		sigma_ar1 = self.build_ar1(rho, sigma_ar, N) 
+		sigma_ar1 = self.build_ar1(theta[3], theta[4], N) 
 
 		t_residual = self.dfTemperature - temperatures
 
-		sigma_ar1_T = self.build_ar1(rho_t, sigma_t, N)
+		sigma_ar1_T = self.build_ar1(theta[10], theta[9], N)
 		sigma_ar1_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
 		log_prior = self.prior(theta)
 		if np.isinf(log_prior): return -np.inf
 		
+		a = np.zeros((self.time, self.time), float)
+		np.fill_diagonal(a, theta[11])
+
 		cov = np.add(sigma_obs,sigma_ar1)
 		cov = np.multiply((np.transpose(cov) + cov), 1/2)
+		temp1 = np.concatenate((a, cov), axis = 1)
 		#cov = sigma_obs
-		log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
+		#log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
 		
 		cov_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
-
-		log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean=None, cov=cov_T)
-		log_posterior = log_likelihood + log_prior + log_likelihood_T
+		temp2 = np.concatenate((cov_T, a), axis = 1)
+		bigcov = np.concatenate((temp1, temp2), axis = 0)
+		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean=None, cov=cov_T)
+		#log_posterior = log_likelihood + log_prior + log_likelihood_T
+		log_posterior = log_prior + stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual)) , mean=None, cov=bigcov)
 		return log_posterior
 
 	def update_mean(self, m, X):
@@ -239,14 +245,14 @@ class CoupledModel:
 #'sigma_ar': 3, 'climate_sensitivity': 3.1, 'ocean_vertical_diffusivity': 3.5, \
 #'aerosol_scaling': 1.1, 'T_0': -0.06, 'sigma_T': 0.1, 'rho_T': 0.55}
 
-values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55]
+values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 0.85]
 #values = [3.4, -0.5, -100, 3.1, 3.5, 1.1, -0.06]
 
 CM = CoupledModel(values)
 
 mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 print(accept_rate)
-pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0', 'sigma_T', 'rho_T']
+pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0', 'sigma_T', 'rho_T', 'sigmatsl']
 #pamnames = ['alpha', 'Teq', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0']
 
 #print(mcmc_chain[:200,0])
@@ -257,18 +263,16 @@ if NUMBER >= 50000:
 	conv = CM.diagnostic([temp_chain1, temp_chain2])
 	mcmc_chain = mcmc_chain[40000:]
 
-print(conv)
-
-for i in range(11):
+for i in range(12):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
 	ax.set_title(pamnames[i])
-	fig.savefig('image/plot'+str(i+1)+'.png')   # save the figure to file
+	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
-for i in range(11):
+for i in range(12):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.hist(mcmc_chain[: ,i], density = True, facecolor='green', alpha=0.5, bins = 20, edgecolor = 'white')
 	ax.set_title(pamnames[i])
-	fig.savefig('image/hist'+str(i+1)+'.png')   # save the figure to file
+	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
