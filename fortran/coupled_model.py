@@ -42,10 +42,6 @@ class CoupledModel:
 
 	def __init__(self, values):
 		
-		self.cs = 3.1
-		self.ovd = 3.5
-		self.asc = 1.1
-		self.T_0 = -0.06
 		self.num = 0
 
 		dfSealevel = pd.read_csv('GMSL_ChurchWhite2011_yr_2015.csv')
@@ -54,6 +50,10 @@ class CoupledModel:
 		self.year = (dfSealevel.loc[(dfSealevel["year"] >= 1880) & (dfSealevel["year"]<=2009), "year"]).tolist()
 		self.sealevel_sigma = (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "uncertainty"]).tolist()
 		self.dfTemperature = dfTemperature.loc[(dfTemperature["Time"] <= 2008) & (dfTemperature["Time"] >= 1880), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"] - dfTemperature.loc[(dfTemperature["Time"] <= 1990) & (dfTemperature["Time"] >= 1961), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"].mean()
+		temp = pd.read_csv("temp.txt", header=None, sep=',')
+		temp_unc = temp.drop(temp.columns[[1,3,4,5]], axis = 1)
+		temp_unc.columns = ["year", "uncertainty"]
+		self.temp_unc = (temp_unc.loc[(temp_unc["year"]>=1880) & (temp_unc["year"]<=2009), "uncertainty"]).tolist()
 		#forcing = pd.read_csv( 'data/forcing_hindcast.csv')
 		#self.mod_time = np.array(forcing['year'])
 		#self.forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=self.asc, l_project=False, begyear=self.mod_time[0], endyear=np.max(self.mod_time)))
@@ -134,15 +134,16 @@ class CoupledModel:
 		#rho, sigma_ar = 0.5, 3
 		#rho_t, sigma_t = 0.55, 1
 		resid = np.array([self.sealevel[i] - model[i] for i in range(len(model))])
-
-		sigma_obs = np.diag([i**2 for i in self.sealevel_sigma])
-		sigma_ar1 = self.build_ar1(theta[3], theta[4], N) 
-
 		t_residual = self.dfTemperature - temperatures
 
+		sigma_obs = np.diag([i**2 for i in self.sealevel_sigma])
+		sigma_obs_T = np.diag([i**2 for i in self.temp_unc])
+		
+		sigma_ar1 = self.build_ar1(theta[3], theta[4], N) 
 		sigma_ar1_T = self.build_ar1(theta[10], theta[9], N)
-		sigma_ar1_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
+
 		log_prior = self.prior(theta)
+
 		if np.isinf(log_prior): return -np.inf
 		
 		a = np.zeros((self.time, self.time), float)
@@ -153,8 +154,8 @@ class CoupledModel:
 		temp1 = np.concatenate((a, cov), axis = 1)
 		#cov = sigma_obs
 		#log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
-		
-		cov_T = np.multiply((np.transpose(sigma_ar1_T) + sigma_ar1_T), 1/2)
+		cov_T = np.add(sigma_obs_T,sigma_ar1_T)
+		cov_T = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
 		temp2 = np.concatenate((cov_T, a), axis = 1)
 		bigcov = np.concatenate((temp1, temp2), axis = 0)
 		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean=None, cov=cov_T)
