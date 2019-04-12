@@ -46,6 +46,7 @@ class CoupledModel:
 
 		dfSealevel = pd.read_csv('GMSL_ChurchWhite2011_yr_2015.csv')
 		dfTemperature = pd.read_csv('NOAA_IPCC_RCPtempsscenarios.csv')
+		dfOcean_heat = pd.read_csv('gouretski_ocean_heat_3000m.txt', sep= ' ')
 		self.sealevel = np.array((dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).tolist()) - (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).mean()
 		self.year = (dfSealevel.loc[(dfSealevel["year"] >= 1880) & (dfSealevel["year"]<=2009), "year"]).tolist()
 		self.sealevel_sigma = (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "uncertainty"]).tolist()
@@ -53,11 +54,14 @@ class CoupledModel:
 		temp = pd.read_csv("temp.txt", header=None, sep=',')
 		temp_unc = temp.drop(temp.columns[[1,3,4,5]], axis = 1)
 		temp_unc.columns = ["year", "uncertainty"]
-		self.temp_unc = (temp_unc.loc[(temp_unc["year"]>=1880) & (temp_unc["year"]<=2009), "uncertainty"]).tolist()
+		self.temp_unc = (temp_unc.loc[(temp_unc["year"]>=1880) & (temp_unc["year"]<=2008), "uncertainty"]).tolist()
+		self.offset = (1952-1880, 2009-1996)	
+		self.ocean_heat = dfOcean_heat['heat-anomaly(10^22J)'].tolist()
+		self.ocean_sigma = dfOcean_heat['std.dev.(10^22J)'].tolist()
+		
 		#forcing = pd.read_csv( 'data/forcing_hindcast.csv')
 		#self.mod_time = np.array(forcing['year'])
 		#self.forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=self.asc, l_project=False, begyear=self.mod_time[0], endyear=np.max(self.mod_time)))
-
 		#self.alpha = parameter('alpha')
 		self.alpha = values[0]
 		#self.Teq = parameter('Teq')
@@ -81,10 +85,12 @@ class CoupledModel:
 		#self.rho_T = parameter('rho_T')
 		self.rho_T = values[10]
 		self.sigmatsl = values[11]
+		self.sigma_O = values[12]
+		self.rho_O = values[13]
 		self.values = values
 		self.time = len(self.year)
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'rho': .001, 'sigma_ar': .1, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03, 'sigma_T': 5e-4, 'rho_T': 0.007}
-		self.stepsizes = [ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007, 0.01]		
+		self.stepsizes = np.array([ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007, 0.01, 5e-4, 0.007])		
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03}
 		
 	def update_cov(self, X, s_d, size):
@@ -94,6 +100,19 @@ class CoupledModel:
 		eps = 0.0001
 		I_d = np.identity(size)
 		return s_d*cov + I_d*eps*s_d
+
+	def flux_to_heat(self, heatflux_mixed, heatflux_interior):
+		flnd = 0.29 # area land fraction
+		fso = 0.95 # ocean area fraction of interior
+		secs_per_year = 31556926
+		earth_area = 510065600 * (10**6)
+		ocean_area = (1-flnd)*earth_area
+		powtoheat = ocean_area*secs_per_year / 10**22 # in 10^22 J/yr
+
+		heat_mixed = np.cumsum(heatflux_mixed) * powtoheat
+		heat_interior = fso * np.cumsum(heatflux_interior) * powtoheat
+		ocean_heat = heat_mixed + heat_interior
+		return(ocean_heat)
 
 	def prior(self, theta):
 
@@ -113,6 +132,9 @@ class CoupledModel:
 		if (self.T_0): log_prior +=  stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
 		if (self.sigma_T): log_prior +=  stats.uniform.logpdf(theta[9], loc = 0.05, scale = 4.95)
 		if (self.rho_T): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0, scale = 0.999)
+		if (self.sigmatsl): log_prior +=  stats.uniform.logpdf(theta[11], loc =  0.1, scale = 0.9)
+		if (self.sigma_O): log_prior +=  stats.uniform.logpdf(theta[12], loc = 0.05, scale = 4.95)
+		if (self.rho_O): log_prior +=  stats.uniform.logpdf(theta[13], loc =  0, scale = 0.999)
 		#print(log_prior)
 		return log_prior
 
@@ -122,29 +144,30 @@ class CoupledModel:
 			temp1 = [rho**j for j in range(i,0,-1)]
 			temp2 = [rho**j for j in range(length-i)]
 			ar1.append(np.array(temp1+temp2))
-		ar1 = np.multiply(np.array(ar1), (sigma_ar**2)/(1-rho**2))
-		return ar1
+		return np.array(ar1)*(sigma_ar**2)/(1-rho**2)
 
-	def logp(self, theta, deltat, temperatures, model):
-
+	def logp(self, theta, deltat, temperatures, model, ocheat):
 
 		log_prior = self.prior(theta)
-		return log_prior 
+		if np.isinf(log_prior): return log_prior
 		N = len(self.sealevel)
 		#rho, sigma_ar = 0.5, 3
 		#rho_t, sigma_t = 0.55, 1
 		resid = np.array([self.sealevel[i] - model[i] for i in range(len(model))])
+		o_residual = np.array(ocheat) - np.array(self.ocean_heat)
 		t_residual = self.dfTemperature - temperatures
 
 		sigma_obs = np.diag([i**2 for i in self.sealevel_sigma])
 		sigma_obs_T = np.diag([i**2 for i in self.temp_unc])
+		sigma_obs_O = np.diag([i**2 for i in self.ocean_sigma])
 		
 		sigma_ar1 = self.build_ar1(theta[3], theta[4], N) 
 		sigma_ar1_T = self.build_ar1(theta[10], theta[9], N)
-
-		log_prior = self.prior(theta)
-
-		if np.isinf(log_prior): return -np.inf
+		sigma_ar1_O = self.build_ar1(theta[13], theta[12], 44)
+		#a = np.zeros((N, N), float)
+		#print(a)
+		#for i in range(self.offset[0], self.offset[0] + len(sigma_ar1_O)):
+			#a[i,:] = np.array([0.]*self.offset[0] + list(sigma_ar1_O) + [0.]*self.offset[1])
 		
 		a = np.zeros((self.time, self.time), float)
 		np.fill_diagonal(a, theta[11])
@@ -153,14 +176,28 @@ class CoupledModel:
 		cov = np.multiply((np.transpose(cov) + cov), 1/2)
 		temp1 = np.concatenate((a, cov), axis = 1)
 		#cov = sigma_obs
-		#log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
+		log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
 		cov_T = np.add(sigma_obs_T,sigma_ar1_T)
 		cov_T = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
-		temp2 = np.concatenate((cov_T, a), axis = 1)
-		bigcov = np.concatenate((temp1, temp2), axis = 0)
-		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean=None, cov=cov_T)
-		#log_posterior = log_likelihood + log_prior + log_likelihood_T
-		log_posterior = log_prior + stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual)) , mean=None, cov=bigcov)
+		temp2 = np.concatenate(( cov_T, a), axis = 1)
+		cov_O = np.add(sigma_obs_O,sigma_ar1_O)
+		cov_O = np.multiply((np.transpose(cov_O) + cov_O), 1/2)
+		#cov_O = np.add(sigma_obs_T,sigma_ar1_T)
+		#cov_O = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
+		#temp3 = np.concatenate((cov_T, a), axis = 1)
+		#print(a)
+		#bigcov = np.concatenate((temp1, temp2), axis = 0)
+		#print(bigcov)
+		#bigcov = np.multiply((np.transpose(bigcov) + bigcov), 1/2)
+		#print(bigcov)
+		log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
+		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
+		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
+		#big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual)) , mean=None, cov=bigcov)
+		#print(log_likelihood, log_likelihood_T)
+		log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
+		#log_posterior = log_prior + big_AR1
+		#print(log_posterior)
 		return log_posterior
 
 	def update_mean(self, m, X):
@@ -198,10 +235,12 @@ class CoupledModel:
 		theta = np.array(self.values)
 		print('Initial estimate for parameters -', theta)
 		temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[8], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+		ocheat = self.flux_to_heat(heatflux_mixed_out, 	heatflux_interior_out)
+		ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]	
 		temp_out += self.T_0
 
-		lp = self.logp(theta, deltat, temp_out, gmsl_out)
+		lp = self.logp(theta, deltat, temp_out, gmsl_out, ocheat)
 		theta_best = theta
 		lp_max = lp
 		theta_new = [0.] * len(theta)
@@ -216,25 +255,25 @@ class CoupledModel:
 		for i in (range(N)):
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
 			theta_new = list(np.random.multivariate_normal(theta, step))
-			#theta_new[3] = 0.5			
-			#theta_new[4] = 3
-			#theta_new[9] = 0.1			
-			#theta_new[10] = 0.55
 			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[8], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
 			temp_out += theta[8]
-			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out)
+			ocheat = self.flux_to_heat(heatflux_mixed_out, 	heatflux_interior_out)			
+			ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]			
+			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out, ocheat)
 			if np.isinf(lp_new):
 				mcmc_chains[i,:] = theta
 				continue
-			lq = lp_new - lp
+			#print(lp, lp_new, 'difference')
+			lq = np.abs(lp_new - lp)
 			
-			lr = np.log(np.random.uniform(0, 1))
+			lr = np.log(np.random.uniform(1,2 ))
 			#print(lr, lq)
 			if (lr < lq):
 				theta = theta_new
 				lp = lp_new
 				accepts += 1
+				#print('NEW VALUE')
 				if lp > lp_max:
 					theta_best = theta
 					lp_max = lp
@@ -246,14 +285,16 @@ class CoupledModel:
 #'sigma_ar': 3, 'climate_sensitivity': 3.1, 'ocean_vertical_diffusivity': 3.5, \
 #'aerosol_scaling': 1.1, 'T_0': -0.06, 'sigma_T': 0.1, 'rho_T': 0.55}
 
-values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 0.85]
+values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 0.85, 3, 0.5]
+#values = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
 #values = [3.4, -0.5, -100, 3.1, 3.5, 1.1, -0.06]
 
 CM = CoupledModel(values)
 
 mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 print(accept_rate)
-pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0', 'sigma_T', 'rho_T', 'sigmatsl']
+pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0' \
+, 'sigma_T', 'rho_T', 'sigmatsl']#, 'sigma_O', 'rho_O']
 #pamnames = ['alpha', 'Teq', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0']
 
 #print(mcmc_chain[:200,0])
@@ -263,6 +304,7 @@ if NUMBER >= 50000:
 	temp_chain2 = mcmc_chain[40000:]
 	conv = CM.diagnostic([temp_chain1, temp_chain2])
 	mcmc_chain = mcmc_chain[40000:]
+	print(conv)
 
 for i in range(12):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
