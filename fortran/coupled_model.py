@@ -10,6 +10,7 @@ COLORS = ["skyblue", "steelblue", "gray"]
 ALPHAS = [1.0, 1.0, 0.45]
 #from tqdm import tqdm
 from fortran_model import doeclim_gmsl
+from tempfile import TemporaryFile
 
 import sys
 import os
@@ -87,10 +88,12 @@ class CoupledModel:
 		self.sigmatsl = values[11]
 		self.sigma_O = values[12]
 		self.rho_O = values[13]
-		self.values = values
+		self.sigmaslo = values[14]
+		self.sigmaot = values[15]
 		self.time = len(self.year)
+		self.values = values
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'rho': .001, 'sigma_ar': .1, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03, 'sigma_T': 5e-4, 'rho_T': 0.007}
-		self.stepsizes = np.array([ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007, 0.01, 5e-4, 0.007])		
+		self.stepsizes = np.array([ .01,  .05,  5,  .001, .1,  0.16,  0.17,  0.025,0.03, 5e-4, 0.007, 0.01, 5e-4, 0.007, 0.01, 0.01])		
 		#self.stepsizes = {'alpha': .01, 'Teq': .05, 'S0': 5, 'climate_sensitivity': 0.16, 'ocean_vertical_diffusivity': 0.17, 'aerosol_scaling': 0.025, 'T_0': 0.03}
 		
 	def update_cov(self, X, s_d, size):
@@ -132,9 +135,11 @@ class CoupledModel:
 		if (self.T_0): log_prior +=  stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
 		if (self.sigma_T): log_prior +=  stats.uniform.logpdf(theta[9], loc = 0.05, scale = 4.95)
 		if (self.rho_T): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0, scale = 0.999)
-		if (self.sigmatsl): log_prior +=  stats.uniform.logpdf(theta[11], loc =  0.1, scale = 0.9)
+		if (self.sigmatsl): log_prior +=  stats.uniform.logpdf(theta[11], loc =  0.01, scale = 0.98999)
 		if (self.sigma_O): log_prior +=  stats.uniform.logpdf(theta[12], loc = 0.05, scale = 4.95)
 		if (self.rho_O): log_prior +=  stats.uniform.logpdf(theta[13], loc =  0, scale = 0.999)
+		if (self.sigmaslo): log_prior +=  stats.uniform.logpdf(theta[14], loc =  0.01, scale = 0.98999)
+		if (self.sigmaot): log_prior +=  stats.uniform.logpdf(theta[15], loc =  0.01, scale = 0.98999)
 		#print(log_prior)
 		return log_prior
 
@@ -171,32 +176,45 @@ class CoupledModel:
 		
 		a = np.zeros((self.time, self.time), float)
 		np.fill_diagonal(a, theta[11])
+		b = np.zeros((44, 44), float)
+		np.fill_diagonal(b, theta[14])
+		b = np.pad(b, ((self.offset[0], self.offset[1]), (0,0)), 'constant', constant_values = 0)
+		#print(b)
+		c = np.zeros((44, 44), float)
+		np.fill_diagonal(c, theta[15])
+		c = np.pad(c, ((self.offset[0], self.offset[1]), (0,0)), 'constant', constant_values = 0)
 
 		cov = np.add(sigma_obs,sigma_ar1)
-		cov = np.multiply((np.transpose(cov) + cov), 1/2)
-		temp1 = np.concatenate((a, cov), axis = 1)
+		#cov = np.multiply((np.transpose(cov) + cov), 1/2)
+		
 		#cov = sigma_obs
-		log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
+		#log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
 		cov_T = np.add(sigma_obs_T,sigma_ar1_T)
-		cov_T = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
-		temp2 = np.concatenate(( cov_T, a), axis = 1)
+		#cov_T = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
+		
 		cov_O = np.add(sigma_obs_O,sigma_ar1_O)
-		cov_O = np.multiply((np.transpose(cov_O) + cov_O), 1/2)
+		#cov_O = np.multiply((np.transpose(cov_O) + cov_O), 1/2)
 		#cov_O = np.add(sigma_obs_T,sigma_ar1_T)
 		#cov_O = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
 		#temp3 = np.concatenate((cov_T, a), axis = 1)
 		#print(a)
-		#bigcov = np.concatenate((temp1, temp2), axis = 0)
+		temp1 = np.concatenate((cov, a, b), axis = 1)
+		temp2 = np.concatenate((a, cov_T, c), axis = 1)
+		temp3 = np.concatenate((b.T, c.T, cov_O), axis = 1)
+		bigcov = np.concatenate((temp1, temp2, temp3), axis = 0)
+		min_eig = np.min(np.real(np.linalg.eigvals(bigcov)))
+		if min_eig < 0:
+			bigcov -= 10*min_eig * np.eye(*bigcov.shape)
 		#print(bigcov)
 		#bigcov = np.multiply((np.transpose(bigcov) + bigcov), 1/2)
 		#print(bigcov)
-		log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
+		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
 		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
-		#big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual)) , mean=None, cov=bigcov)
+		big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
 		#print(log_likelihood, log_likelihood_T)
-		log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
-		#log_posterior = log_prior + big_AR1
+		#log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
+		log_posterior = log_prior + big_AR1
 		#print(log_posterior)
 		return log_posterior
 
@@ -253,6 +271,7 @@ class CoupledModel:
 		#Check if converged. If not keep running. 
 		print(N)
 		for i in (range(N)):
+			#print(i)
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
 			theta_new = list(np.random.multivariate_normal(theta, step))
 			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
@@ -267,7 +286,7 @@ class CoupledModel:
 			#print(lp, lp_new, 'difference')
 			lq = np.abs(lp_new - lp)
 			
-			lr = np.log(np.random.uniform(1,2 ))
+			lr = np.log(np.random.uniform(1,2))
 			#print(lr, lq)
 			if (lr < lq):
 				theta = theta_new
@@ -285,7 +304,7 @@ class CoupledModel:
 #'sigma_ar': 3, 'climate_sensitivity': 3.1, 'ocean_vertical_diffusivity': 3.5, \
 #'aerosol_scaling': 1.1, 'T_0': -0.06, 'sigma_T': 0.1, 'rho_T': 0.55}
 
-values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 0.85, 3, 0.5]
+values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 0.85, 3, 0.5, 0.85, 0.85]
 #values = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
 #values = [3.4, -0.5, -100, 3.1, 3.5, 1.1, -0.06]
 
@@ -293,8 +312,9 @@ CM = CoupledModel(values)
 
 mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 print(accept_rate)
+pd.DataFrame(mcmc_chain).to_csv('array.csv')
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0' \
-, 'sigma_T', 'rho_T', 'sigmatsl']#, 'sigma_O', 'rho_O']
+, 'sigma_T', 'rho_T', 'sigmatsl', 'sigma_O', 'rho_O', 'sigmaslo', 'sigmaot']
 #pamnames = ['alpha', 'Teq', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0']
 
 #print(mcmc_chain[:200,0])
@@ -306,14 +326,14 @@ if NUMBER >= 50000:
 	mcmc_chain = mcmc_chain[40000:]
 	print(conv)
 
-for i in range(12):
+for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
 	ax.set_title(pamnames[i])
 	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
-for i in range(12):
+for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.hist(mcmc_chain[: ,i], density = True, facecolor='green', alpha=0.5, bins = 20, edgecolor = 'white')
 	ax.set_title(pamnames[i])
