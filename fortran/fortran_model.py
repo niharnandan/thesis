@@ -7,7 +7,7 @@ import numpy as np
 import forcing_total
 
 def doeclim_gmsl(asc = 1.1, t2co_in= 3.1, \
-kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0):
+kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0, forcing='forcing_hindcast'):
 	fortran = CDLL('./doeclim_gmsl.so')
 	fortran.run_doeclim_gmsl.argtypes = [
 	POINTER(c_int),
@@ -23,7 +23,7 @@ kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0):
 	POINTER(c_double),
 	POINTER(c_double)
 	]
-	forcing = pd.read_csv( 'data/forcing_hindcast.csv')
+	forcing = pd.read_csv( 'data/'+forcing+'.csv')
 	mod_time = np.array(forcing['year'])
 	forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=asc, l_project=False, begyear=mod_time[0], endyear=np.max(mod_time)))
 

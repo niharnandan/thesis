@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+#np.seterr(all='ignore')
 np.set_printoptions(threshold=np.inf)
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -41,7 +42,7 @@ class parameter:
 
 class CoupledModel:
 
-	def __init__(self, values):
+	def __init__(self, values, forcing):
 		
 		self.num = 0
 
@@ -59,7 +60,7 @@ class CoupledModel:
 		self.offset = (1952-1880, 2009-1996)	
 		self.ocean_heat = dfOcean_heat['heat-anomaly(10^22J)'].tolist()
 		self.ocean_sigma = dfOcean_heat['std.dev.(10^22J)'].tolist()
-		
+		self.forcing = forcing
 		#forcing = pd.read_csv( 'data/forcing_hindcast.csv')
 		#self.mod_time = np.array(forcing['year'])
 		#self.forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=self.asc, l_project=False, begyear=self.mod_time[0], endyear=np.max(self.mod_time)))
@@ -206,12 +207,12 @@ class CoupledModel:
 		if min_eig < 0:
 			bigcov -= 10*min_eig * np.eye(*bigcov.shape)
 		#print(bigcov)
-		#bigcov = np.multiply((np.transpose(bigcov) + bigcov), 1/2)
 		#print(bigcov)
 		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
 		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
+		#big_AR1 = np.log(big_AR1) if big_AR1 else -np.inf		
 		#print(log_likelihood, log_likelihood_T)
 		#log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
 		log_posterior = log_prior + big_AR1
@@ -253,7 +254,7 @@ class CoupledModel:
 		theta = np.array(self.values)
 		print('Initial estimate for parameters -', theta)
 		temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
 		ocheat = self.flux_to_heat(heatflux_mixed_out, 	heatflux_interior_out)
 		ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]	
 		temp_out += self.T_0
@@ -275,7 +276,7 @@ class CoupledModel:
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
 			theta_new = list(np.random.multivariate_normal(theta, step))
 			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2]) 
+			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
 			temp_out += theta[8]
 			ocheat = self.flux_to_heat(heatflux_mixed_out, 	heatflux_interior_out)			
 			ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]			
@@ -308,7 +309,8 @@ values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 0.85, 3, 0.5,
 #values = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
 #values = [3.4, -0.5, -100, 3.1, 3.5, 1.1, -0.06]
 
-CM = CoupledModel(values)
+forcing = 'forcing_hindcast'
+CM = CoupledModel(values, forcing)
 
 mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 print(accept_rate)
