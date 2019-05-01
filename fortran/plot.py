@@ -68,14 +68,14 @@ print(jump)
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
-	#ax.set_title(pamnames[i])
+	ax.set_title(pamnames[i])
 	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	sns.distplot(mcmc_chain[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4})
-	ax.set_title(pamnames[i])
+	#ax.set_title(pamnames[i])
 	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
