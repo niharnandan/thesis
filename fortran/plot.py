@@ -96,7 +96,7 @@ _,_,_ ,gmsl_outh = doeclim_gmsl(asc = high[7], t2co_in = high[5], kappa_in=high[
 _,_,_ ,gmsl_outm = doeclim_gmsl(asc = med[7], t2co_in = med[5], kappa_in=med[6], alphasl_in = med[0], Teq = med[1], SL0 = med[2], forcing='forcing_hindcast')
 
 x = list(range(1880, 1880+len(gmsl_outl)))
-plt.plot(x, gmsl_outm, 'k', color='#CC4F1B')
+plt.plot(x, gmsl_outm, 'k', color='#CC4F1B', linewidth=5)
 
 
 #plt.fill_between(x, gmsl_outl, gmsl_outh,
