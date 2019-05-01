@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 #np.seterr(all='ignore')
+import time
 np.set_printoptions(threshold=np.inf)
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ ALPHAS = [1.0, 1.0, 0.45]
 #from tqdm import tqdm
 from fortran_model import doeclim_gmsl
 from tempfile import TemporaryFile
-
+import warnings
 import sys
 import os
 
@@ -175,13 +176,13 @@ class CoupledModel:
 		#for i in range(self.offset[0], self.offset[0] + len(sigma_ar1_O)):
 			#a[i,:] = np.array([0.]*self.offset[0] + list(sigma_ar1_O) + [0.]*self.offset[1])
 		
-		a = np.zeros((self.time, self.time), float)
+		a = np.zeros((self.time, self.time), np.float64)
 		np.fill_diagonal(a, theta[11])
-		b = np.zeros((44, 44), float)
+		b = np.zeros((44, 44), np.float64)
 		np.fill_diagonal(b, theta[14])
 		b = np.pad(b, ((self.offset[0], self.offset[1]), (0,0)), 'constant', constant_values = 0)
 		#print(b)
-		c = np.zeros((44, 44), float)
+		c = np.zeros((44, 44), np.float64)
 		np.fill_diagonal(c, theta[15])
 		c = np.pad(c, ((self.offset[0], self.offset[1]), (0,0)), 'constant', constant_values = 0)
 
@@ -212,9 +213,11 @@ class CoupledModel:
 		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
-		#big_AR1 = np.log(big_AR1) if big_AR1 else -np.inf		
+		print(big_AR1)
+		#big_AR1_log = np.log(big_AR1) if big_AR1>0 else -np.inf		
 		#print(log_likelihood, log_likelihood_T)
 		#log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
+		if big_AR1 == -np.inf: return log_prior		
 		log_posterior = log_prior + big_AR1
 		#print(log_posterior)
 		return log_posterior
@@ -274,6 +277,7 @@ class CoupledModel:
 		for i in (range(N)):
 			#print(i)
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
+			if not i%200: time.sleep(.5)		
 			theta_new = list(np.random.multivariate_normal(theta, step))
 			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
 			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
@@ -321,23 +325,4 @@ pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'oce
 
 #print(mcmc_chain[:200,0])
 
-if NUMBER >= 50000:
-	temp_chain1 = mcmc_chain[30000:40000]
-	temp_chain2 = mcmc_chain[40000:]
-	conv = CM.diagnostic([temp_chain1, temp_chain2])
-	mcmc_chain = mcmc_chain[40000:]
-	print(conv)
 
-for i in range(16):
-	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-	ax.plot(mcmc_chain[: ,i])
-	ax.set_title(pamnames[i])
-	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
-	plt.close(fig)
-
-for i in range(16):
-	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-	ax.hist(mcmc_chain[: ,i], density = True, facecolor='green', alpha=0.5, bins = 20, edgecolor = 'white')
-	ax.set_title(pamnames[i])
-	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
-	plt.close(fig)
