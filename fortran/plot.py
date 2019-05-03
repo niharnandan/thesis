@@ -46,7 +46,14 @@ indices = [str(i) for i in range(0,16)]
 temp = temp[indices]
 mcmc_chain = temp.values
 mcmc_big = temp.values
+mcmc_big = mcmc_big[:25000]
 NUMBER = len(mcmc_chain)
+
+temp = pd.read_csv('array_uncorr.csv')
+indices = [str(i) for i in range(0,13)]
+temp = temp[indices]
+mcmc_chain_uncorr = temp.values
+mcmc_big_uncorr = temp.values
 
 temp_chain1, temp_chain2 = [], []
 
@@ -54,7 +61,8 @@ if NUMBER >= 50000:
 	temp_chain1 = mcmc_chain[100000:150000]
 	temp_chain2 = mcmc_chain[150000:]
 	conv = diagnostic([temp_chain1, temp_chain2])
-mcmc_chain_1 = mcmc_chain[150000:]
+mcmc_chain_1 = mcmc_chain[100000:150000]
+mcmc_chain__1_uncorr = mcmc_chain_uncorr[100000:150000]
 mcmc_chain = mcmc_chain[100000:]
 
 mcmc_chains = [temp_chain1, temp_chain2]
@@ -72,18 +80,28 @@ print(jump)
 
 
 for i in range(16):
-	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
+	fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,4))  # create figure & 1 axis
 	ax.plot(mcmc_big[: ,i])
 	ax.set_title(pamnames[i])
 	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
 for i in range(16):
+	if i == 5: continue
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-	sns.distplot(mcmc_chain_1[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4})
+	sns.distplot(mcmc_chain_1[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4, 'alpha':1.0})
 	#ax.set_title(pamnames[i])
 	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
+
+
+fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
+sns.distplot(mcmc_chain_1[: ,5], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Correlated Model')
+sns.distplot(mcmc_chain__1_uncorr[: ,5], hist=True, kde=True, color = 'darkgreen', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Uncorrelated Model')
+#ax.set_title(pamnames[i])
+ax.legend()
+fig.savefig('image/hist_'+pamnames[5]+'.png')   # save the figure to file
+plt.close(fig)
 
 '''
 R = [(diagnostic(mcmc_chains[:,0,:]))]
