@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 import gmsl_model
 import seaborn as sns
 from fortran_model import doeclim_gmsl
+plt.style.use("fivethirtyeight")
+
+COLORS = ["skyblue", "steelblue", "gray"]
+ALPHAS = [1.0,1.0,0.45]
 
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0' \
 , 'sigma_T', 'rho_T', 'sigmatsl', 'sigma_O', 'rho_O', 'sigmaslo', 'sigmaot']
@@ -41,6 +45,7 @@ temp = pd.read_csv('array.csv')
 indices = [str(i) for i in range(0,16)]
 temp = temp[indices]
 mcmc_chain = temp.values
+mcmc_big = temp.values
 NUMBER = len(mcmc_chain)
 
 temp_chain1, temp_chain2 = [], []
@@ -49,8 +54,9 @@ if NUMBER >= 50000:
 	temp_chain1 = mcmc_chain[100000:150000]
 	temp_chain2 = mcmc_chain[150000:]
 	conv = diagnostic([temp_chain1, temp_chain2])
-
+mcmc_chain_1 = mcmc_chain[150000:]
 mcmc_chain = mcmc_chain[100000:]
+
 mcmc_chains = [temp_chain1, temp_chain2]
 
 
@@ -58,23 +64,23 @@ mcmc_chains = [temp_chain1, temp_chain2]
 
 #jump = correlation(mcmc_chain)
 temp = []
-jump = 457
+jump = 257
 for i in range(0,len(mcmc_chain),jump):
 	temp.append(mcmc_chain[i])
-mcmc_chain = np.array(temp)
+temp = np.array(temp)
 print(jump)
 
 
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-	ax.plot(mcmc_chain[: ,i])
+	ax.plot(mcmc_big[: ,i])
 	ax.set_title(pamnames[i])
 	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-	sns.distplot(mcmc_chain[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4})
+	sns.distplot(mcmc_chain_1[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4})
 	#ax.set_title(pamnames[i])
 	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
@@ -87,9 +93,10 @@ while burn_in < len(mcmc_chain1):
 	burn_in += len(mcmc_chain1)//100
 #R.append(diagnostic(mcmc_chains[:,burn_in:,:]))
 '''
-low = np.percentile(mcmc_chain, 5, axis = 0)
-high = np.percentile(mcmc_chain, 95, axis = 0)
-med = np.mean(mcmc_chain, axis = 0)
+low = np.percentile(temp, 5, axis = 0)
+high = np.percentile(temp, 95, axis = 0)
+med = np.mean(temp, axis = 0)
+print(med[2])
 #print(low, high)
 _,_,_ ,gmsl_outl = doeclim_gmsl(asc = low[7], t2co_in = low[5], kappa_in=low[6], alphasl_in = low[0], Teq = low[1], SL0 = low[2], forcing='forcing_hindcast')
 _,_,_ ,gmsl_outh = doeclim_gmsl(asc = high[7], t2co_in = high[5], kappa_in=high[6], alphasl_in = high[0], Teq = high[1], SL0 = high[2], forcing='forcing_hindcast')
@@ -101,6 +108,6 @@ plt.plot(x, gmsl_outm, 'k', color='#CC4F1B', linewidth=5)
 
 #plt.fill_between(x, gmsl_outl, gmsl_outh,
 #    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')
-plt.yticks([])
+#plt.yticks([])
 plt.savefig('gmsl.png')
 plt.show()

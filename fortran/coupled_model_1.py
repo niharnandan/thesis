@@ -126,7 +126,7 @@ class CoupledModel:
 		log_prior = 0
 		if (self.alpha): log_prior += stats.uniform.logpdf(alpha, loc = 0, scale = 5) #lb and ub?
 		if (self.Teq): log_prior +=  stats.uniform.logpdf(Teq, loc=-3, scale = 4)
-		if (self.S0): log_prior +=  stats.norm.logpdf(S0, loc = self.sealevel[0], scale = self.sealevel_sigma[0])
+		if (self.S0): log_prior +=  stats.uniform.logpdf(S0, loc = self.sealevel[0]-(3*self.sealevel_sigma[0]), scale = 6*self.sealevel_sigma[0])
 		if (self.rho): log_prior +=  stats.uniform.logpdf(rho, loc = 0, scale = 1)
 		if (self.sigma_ar): log_prior +=  stats.uniform.logpdf(sigma_ar, loc = 0, scale = 5)
 		if (self.climate_sensitivity): log_prior +=  stats.uniform.logpdf(theta[5], loc = 0.1, scale = 9.9)
