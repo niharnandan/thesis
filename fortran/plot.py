@@ -120,12 +120,14 @@ _,_,_ ,gmsl_outl = doeclim_gmsl(asc = low[7], t2co_in = low[5], kappa_in=low[6],
 _,_,_ ,gmsl_outh = doeclim_gmsl(asc = high[7], t2co_in = high[5], kappa_in=high[6], alphasl_in = high[0], Teq = high[1], SL0 = high[2], forcing='forcing_hindcast')
 _,_,_ ,gmsl_outm = doeclim_gmsl(asc = med[7], t2co_in = med[5], kappa_in=med[6], alphasl_in = med[0], Teq = med[1], SL0 = med[2], forcing='forcing_hindcast')
 
+plt.rcParams.update(plt.rcParamsDefault)
 x = list(range(1880, 1880+len(gmsl_outl)))
 plt.plot(x, gmsl_outm, 'k', color='#CC4F1B', linewidth=5)
-
+noise = [np.random.uniform(i-20, i+20) for i in gmsl_outm]
+plt.scatter(x, noise)
 
 #plt.fill_between(x, gmsl_outl, gmsl_outh,
 #    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')
-#plt.yticks([])
+plt.yticks([])
 plt.savefig('gmsl.png')
 plt.show()
