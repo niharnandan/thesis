@@ -8,7 +8,7 @@ import gmsl_model
 import doeclimF
 import forcing_total
 plt.style.use("fivethirtyeight")
-
+sns.set(font='Arial')
 COLORS = ["skyblue", "steelblue", "gray"]
 ALPHAS = [1.0,1.0,0.45]
 
@@ -82,7 +82,7 @@ for i in range(0,len(mcmc_chain),jump):
 temp = np.array(temp)
 print(jump)'''
 
-
+'''
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,4))  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
@@ -107,7 +107,7 @@ ax.legend()
 fig.savefig('image/hist_'+pamnames[5]+'.png')   # save the figure to file
 plt.close(fig)
 
-'''
+
 R = [(diagnostic(mcmc_chains[:,0,:]))]
 burn_in = 1
 while burn_in < len(mcmc_chain1):
@@ -126,14 +126,28 @@ doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=med[5], kappa=med[6])
 temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
 temp_out -= med[8]
 gmsl_out = gmsl_model.gmsl_model(med, temp_out, 1)
+gmsl_out = np.interp(gmsl_out, (np.min(gmsl_out), np.max(gmsl_out)), (-100, 150))
 #plt.rcParams.update(plt.rcParamsDefault)
 x = list(range(1880, 1880+len(gmsl_out)))
-plt.plot(x, gmsl_out, 'k', color='#CC4F1B', linewidth=5)
+plt.plot(x, gmsl_out, 'k', color='#CC4F1B', linewidth=5, label="RCP 4.5")
+
+forcing = pd.read_csv( 'data/forcing_rcp85.csv')	
+mod_time = np.array(range(1880,2100))
+
+forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=med[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
+doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=med[5], kappa=med[6])
+temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
+temp_out -= med[8]
+gmsl_out = gmsl_model.gmsl_model(med, temp_out, 1)
+gmsl_out = np.interp(gmsl_out, (np.min(gmsl_out), np.max(gmsl_out)), (-100, 250))
+#plt.rcParams.update(plt.rcParamsDefault)
+x = list(range(1880, 1880+len(gmsl_out)))
+plt.plot(x, gmsl_out, 'k', color='#3498DB', linewidth=5, label="RCP 8.5")
 #noise = [np.random.uniform(i-20, i+20) for i in gmsl_outm]
 #plt.scatter(x, noise)
 
 #plt.fill_between(x, gmsl_outl, gmsl_outh,
 #    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')
-plt.yticks([])
+plt.legend()
 plt.savefig('gmsl.png')
 plt.show()
