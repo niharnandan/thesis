@@ -10,7 +10,7 @@ def forcing_total (forcing, alpha_doeclim, l_project, begyear, endyear,flnd = 0.
 		forcing_total = flnd*forcing_land + (1-flnd)*forcing_ocean
 	else:
 		## Projections
-		forcing_total = forcing['co2'] + forcing['nonco2'] + alpha_doeclim*forcing['aerosol.direct'] + alpha_doeclim*forcing['aerosol_indirect'] +forcing['solar'] + forcing['volcanic'] + forcing['other']
+		forcing_total = forcing['co2'] + forcing['nonco2'] + alpha_doeclim*forcing['aerosol.direct'] + alpha_doeclim*forcing['aerosol.indirect'] +forcing['solar'] + forcing['volcanic'] + forcing['other']
 
 
 	## Clip forcing at the beginning and end of the model simulation

@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import gmsl_model
 import seaborn as sns
 from fortran_model import doeclim_gmsl
+import gmsl_model
+import doeclimF
+import forcing_total
 plt.style.use("fivethirtyeight")
 
 COLORS = ["skyblue", "steelblue", "gray"]
@@ -45,6 +48,7 @@ temp = pd.read_csv('array.csv')
 indices = [str(i) for i in range(0,16)]
 temp = temp[indices]
 mcmc_chain = temp.values
+'''
 mcmc_big = temp.values
 mcmc_big = mcmc_big[:25000]
 NUMBER = len(mcmc_chain)
@@ -76,12 +80,12 @@ jump = 257
 for i in range(0,len(mcmc_chain),jump):
 	temp.append(mcmc_chain[i])
 temp = np.array(temp)
-print(jump)
+print(jump)'''
 
 
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,4))  # create figure & 1 axis
-	ax.plot(mcmc_big[: ,i])
+	ax.plot(mcmc_chain[: ,i])
 	ax.set_title(pamnames[i])
 	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
@@ -89,12 +93,12 @@ for i in range(16):
 for i in range(16):
 	if i == 5: continue
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-	sns.distplot(mcmc_chain_1[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4, 'alpha':1.0})
+	sns.distplot(mcmc_chain[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4, 'alpha':1.0})
 	#ax.set_title(pamnames[i])
 	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
-
+'''
 fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 sns.distplot(mcmc_chain_1[: ,5], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Correlated Model')
 sns.distplot(mcmc_chain__1_uncorr[: ,5], hist=True, kde=True, color = 'darkgreen', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Uncorrelated Model')
@@ -103,7 +107,7 @@ ax.legend()
 fig.savefig('image/hist_'+pamnames[5]+'.png')   # save the figure to file
 plt.close(fig)
 
-'''
+
 R = [(diagnostic(mcmc_chains[:,0,:]))]
 burn_in = 1
 while burn_in < len(mcmc_chain1):
@@ -111,20 +115,22 @@ while burn_in < len(mcmc_chain1):
 	burn_in += len(mcmc_chain1)//100
 #R.append(diagnostic(mcmc_chains[:,burn_in:,:]))
 '''
-low = np.percentile(temp, 5, axis = 0)
-high = np.percentile(temp, 95, axis = 0)
-med = np.mean(temp, axis = 0)
-print(med[2])
-#print(low, high)
-_,_,_ ,gmsl_outl = doeclim_gmsl(asc = low[7], t2co_in = low[5], kappa_in=low[6], alphasl_in = low[0], Teq = low[1], SL0 = low[2], forcing='forcing_hindcast')
-_,_,_ ,gmsl_outh = doeclim_gmsl(asc = high[7], t2co_in = high[5], kappa_in=high[6], alphasl_in = high[0], Teq = high[1], SL0 = high[2], forcing='forcing_hindcast')
-_,_,_ ,gmsl_outm = doeclim_gmsl(asc = med[7], t2co_in = med[5], kappa_in=med[6], alphasl_in = med[0], Teq = med[1], SL0 = med[2], forcing='forcing_hindcast')
+low = np.percentile(mcmc_chain, 5, axis = 0)
+high = np.percentile(mcmc_chain, 95, axis = 0)
+med = np.mean(mcmc_chain, axis = 0)
+forcing = pd.read_csv( 'data/forcing_rcp45.csv')	
+mod_time = np.array(range(1880,2100))
 
-plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_outl)))
-plt.plot(x, gmsl_outm, 'k', color='#CC4F1B', linewidth=5)
-noise = [np.random.uniform(i-20, i+20) for i in gmsl_outm]
-plt.scatter(x, noise)
+forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=med[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
+doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=med[5], kappa=med[6])
+temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
+temp_out -= med[8]
+gmsl_out = gmsl_model.gmsl_model(med, temp_out, 1)
+#plt.rcParams.update(plt.rcParamsDefault)
+x = list(range(1880, 1880+len(gmsl_out)))
+plt.plot(x, gmsl_out, 'k', color='#CC4F1B', linewidth=5)
+#noise = [np.random.uniform(i-20, i+20) for i in gmsl_outm]
+#plt.scatter(x, noise)
 
 #plt.fill_between(x, gmsl_outl, gmsl_outh,
 #    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')

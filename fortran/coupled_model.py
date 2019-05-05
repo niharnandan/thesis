@@ -16,6 +16,9 @@ from tempfile import TemporaryFile
 import warnings
 import sys
 import os
+import gmsl_model
+import doeclimF
+import forcing_total
 
 NUMBER = int(sys.argv[1])
 
@@ -50,7 +53,7 @@ class CoupledModel:
 		dfSealevel = pd.read_csv('GMSL_ChurchWhite2011_yr_2015.csv')
 		dfTemperature = pd.read_csv('NOAA_IPCC_RCPtempsscenarios.csv')
 		dfOcean_heat = pd.read_csv('gouretski_ocean_heat_3000m.txt', sep= ' ')
-		self.sealevel = np.array((dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).tolist()) - (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).mean()
+		self.sealevel = np.array((dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).tolist()) - (dfSealevel.loc[(dfSealevel["year"]>=1961) & (dfSealevel["year"]<=1990), "sealevel"]).mean()
 		self.year = (dfSealevel.loc[(dfSealevel["year"] >= 1880) & (dfSealevel["year"]<=2009), "year"]).tolist()
 		self.sealevel_sigma = (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "uncertainty"]).tolist()
 		self.dfTemperature = dfTemperature.loc[(dfTemperature["Time"] <= 2008) & (dfTemperature["Time"] >= 1880), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"] - dfTemperature.loc[(dfTemperature["Time"] <= 1990) & (dfTemperature["Time"] >= 1961), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"].mean()
@@ -61,9 +64,9 @@ class CoupledModel:
 		self.offset = (1952-1880, 2009-1996)	
 		self.ocean_heat = dfOcean_heat['heat-anomaly(10^22J)'].tolist()
 		self.ocean_sigma = dfOcean_heat['std.dev.(10^22J)'].tolist()
-		self.forcing = forcing
-		#forcing = pd.read_csv( 'data/forcing_hindcast.csv')
-		#self.mod_time = np.array(forcing['year'])
+		self.forcing = pd.read_csv( 'data/forcing_hindcast.csv')	
+
+		self.mod_time = np.array(self.forcing['year'])
 		#self.forcingtotal = np.array(forcing_total.forcing_total(forcing=forcing, alpha_doeclim=self.asc, l_project=False, begyear=self.mod_time[0], endyear=np.max(self.mod_time)))
 		#self.alpha = parameter('alpha')
 		self.alpha = values[0]
@@ -217,7 +220,7 @@ class CoupledModel:
 		#big_AR1_log = np.log(big_AR1) if big_AR1>0 else -np.inf		
 		#print(log_likelihood, log_likelihood_T)
 		#log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
-		if big_AR1 == -np.inf: return log_prior		
+		if big_AR1 == -np.inf or np.isnan(big_AR1): return log_prior		
 		log_posterior = log_prior + big_AR1
 		#print(log_posterior)
 		return log_posterior
@@ -256,11 +259,13 @@ class CoupledModel:
 	def chain(self, deltat, N=10000):
 		theta = np.array(self.values)
 		print('Initial estimate for parameters -', theta)
-		temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-		doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
-		ocheat = self.flux_to_heat(heatflux_mixed_out, 	heatflux_interior_out)
+		forcingtotal = forcing_total.forcing_total(forcing=self.forcing, alpha_doeclim=self.values[7], l_project=False, begyear=self.mod_time[0], endyear=np.max(self.mod_time))
+		doeclim_out = doeclimF.doeclimF(forcingtotal, self.mod_time, S=self.values[5], kappa=self.values[6])
+		temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), "temp"]).tolist())
+		ocheat = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), 'ocheat.mixed']).tolist())
 		ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]	
 		temp_out += self.T_0
+		gmsl_out = gmsl_model.gmsl_model(theta, temp_out, 1)
 
 		lp = self.logp(theta, deltat, temp_out, gmsl_out, ocheat)
 		theta_best = theta
@@ -277,12 +282,12 @@ class CoupledModel:
 		for i in (range(N)):
 			#print(i)
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
-			if not i%200: time.sleep(.5)		
 			theta_new = list(np.random.multivariate_normal(theta, step))
-			temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
-			doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
+			doeclim_out = doeclimF.doeclimF(forcingtotal, self.mod_time, S=theta[5], kappa=theta[6])
+			temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), "temp"]).tolist())
 			temp_out += theta[8]
-			ocheat = self.flux_to_heat(heatflux_mixed_out, 	heatflux_interior_out)			
+			ocheat = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), 'ocheat.mixed']).tolist())
+			gmsl_out = gmsl_model.gmsl_model(theta, temp_out, 1)
 			ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]			
 			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out, ocheat)
 			if np.isinf(lp_new):
