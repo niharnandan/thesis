@@ -98,16 +98,16 @@ for i in range(16):
 	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
-'''
+
 fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
-sns.distplot(mcmc_chain_1[: ,5], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Correlated Model')
-sns.distplot(mcmc_chain__1_uncorr[: ,5], hist=True, kde=True, color = 'darkgreen', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Uncorrelated Model')
+sns.distplot(mcmc_chain[: ,5], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Correlated Model')
+#sns.distplot(mcmc_chain__1_uncorr[: ,5], hist=True, kde=True, color = 'darkgreen', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Uncorrelated Model')
 #ax.set_title(pamnames[i])
 ax.legend()
 fig.savefig('image/hist_'+pamnames[5]+'.png')   # save the figure to file
 plt.close(fig)
 
-
+'''
 R = [(diagnostic(mcmc_chains[:,0,:]))]
 burn_in = 1
 while burn_in < len(mcmc_chain1):
