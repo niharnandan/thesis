@@ -174,7 +174,7 @@ doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=low[5], kappa=low[6])
 temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
 temp_out -= low[8]
 gmsl_outl = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_outl = np.interp(gmsl_outl, (np.min(gmsl_outl), np.max(gmsl_outl)), (-100, 270))
+gmsl_outl = np.interp(gmsl_outl, (np.min(gmsl_outl), np.max(gmsl_outl)), (-100, 280))
 #plt.rcParams.update(plt.rcParamsDefault)
 x = list(range(1880, 1880+len(gmsl_out)))
 
@@ -183,7 +183,7 @@ doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=high[5], kappa=high[6]
 temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
 temp_out -= high[8]
 gmsl_outh = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_outh = np.interp(gmsl_outh, (np.min(gmsl_outh), np.max(gmsl_outh)), (-100, 200))
+gmsl_outh = np.interp(gmsl_outh, (np.min(gmsl_outh), np.max(gmsl_outh)), (-100, 175))
 #plt.rcParams.update(plt.rcParamsDefault)
 x = list(range(1880, 1880+len(gmsl_out)))
 
