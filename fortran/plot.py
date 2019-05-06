@@ -15,6 +15,9 @@ ALPHAS = [1.0,1.0,0.45]
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0' \
 , 'sigma_T', 'rho_T', 'sigmatsl', 'sigma_O', 'rho_O', 'sigmaslo', 'sigmaot']
 
+pamnamesc = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0' \
+, 'sigma_T', 'rho_T', 'sigma_O', 'rho_O']
+
 def diagnostic(mcmc_chains):
 	N = len(mcmc_chains[0])
 	m = len(mcmc_chains)
@@ -48,9 +51,8 @@ temp = pd.read_csv('array.csv')
 indices = [str(i) for i in range(0,16)]
 temp = temp[indices]
 mcmc_chain = temp.values
-'''
+
 mcmc_big = temp.values
-mcmc_big = mcmc_big[:25000]
 NUMBER = len(mcmc_chain)
 
 temp = pd.read_csv('array_uncorr.csv')
@@ -59,6 +61,7 @@ temp = temp[indices]
 mcmc_chain_uncorr = temp.values
 mcmc_big_uncorr = temp.values
 
+'''
 temp_chain1, temp_chain2 = [], []
 
 if NUMBER >= 50000:
@@ -82,7 +85,6 @@ for i in range(0,len(mcmc_chain),jump):
 temp = np.array(temp)
 print(jump)'''
 
-'''
 for i in range(16):
 	fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,4))  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
@@ -98,16 +100,15 @@ for i in range(16):
 	fig.savefig('image/hist_'+pamnames[i]+'.png')   # save the figure to file
 	plt.close(fig)
 
-
 fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 sns.distplot(mcmc_chain[: ,5], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Correlated Model')
-#sns.distplot(mcmc_chain__1_uncorr[: ,5], hist=True, kde=True, color = 'darkgreen', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Uncorrelated Model')
+sns.distplot(mcmc_big_uncorr[: ,5], hist=True, kde=True, color = 'darkgreen', hist_kws={'edgecolor':'black', 'alpha':0.2}, kde_kws ={'linewidth':4}, label='Uncorrelated Model')
 #ax.set_title(pamnames[i])
 ax.legend()
 fig.savefig('image/hist_'+pamnames[5]+'.png')   # save the figure to file
 plt.close(fig)
 
-
+exit()
 R = [(diagnostic(mcmc_chains[:,0,:]))]
 burn_in = 1
 while burn_in < len(mcmc_chain1):
@@ -150,4 +151,4 @@ plt.plot(x, gmsl_out, 'k', color='#3498DB', linewidth=5, label="RCP 8.5")
 #    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')
 plt.legend()
 plt.savefig('gmsl.png')
-plt.show()
+plt.show()'''
