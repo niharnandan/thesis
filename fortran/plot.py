@@ -57,12 +57,14 @@ temp = pd.read_csv('array_uncorr.csv')
 indices = [str(i) for i in range(0,13)]
 temp = temp[indices]
 mcmc_chain_uncorr = temp.values
-mcmc_chain = mcmc_chain_uncorr[:22000]
+mcmc_chain = mcmc_chain_uncorr[:1000]
 mcmc_big_uncorr = temp.values
 
 
 
-
+#mcmc_chain_1 = mcmc_chain[12000:17000]
+#mcmc_chain_2 = mcmc_chain[17000:22000]
+#print(diagnostic([mcmc_chain_1,mcmc_chain_2]))
 #jump = correlation(mcmc_chain)
 '''
 temp = []
