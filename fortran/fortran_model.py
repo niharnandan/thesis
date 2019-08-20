@@ -1,6 +1,5 @@
 from ctypes import CDLL, POINTER, c_int, c_float, c_void_p, c_double
 import numpy as np
-import time
 import forcing_total
 import pandas as pd
 import numpy as np
@@ -55,7 +54,8 @@ kappa_in= 3.5, alphasl_in= 3.4, Teq= -0.5, SL0=0, forcing='forcing_hindcast'):
 	heatflux_mixed_out = heatflux_mixed_out.ravel()
 	heatflux_interior_out = heatflux_interior_out.ravel()
 	gmsl_out = gmsl_out.ravel()
-
+	print(len(temp_out))
+	print(temp_out)
 	return (temp_out[-130:-1], heatflux_mixed_out[-130:-1], heatflux_interior_out[-130:-1], gmsl_out[-130:-1])
 
 #forcing = pd.read_csv('../data/forcing_hindcast.csv')
