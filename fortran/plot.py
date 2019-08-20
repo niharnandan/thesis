@@ -80,7 +80,7 @@ for i in range(13):
 	plt.close(fig)
 
 for i in range(13):
-	if i == 5: continue
+	#if i == 5: continue
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis
 	sns.distplot(mcmc_chain[: ,i], hist=True, kde=True, color = 'darkblue', hist_kws={'edgecolor':'black'}, kde_kws ={'linewidth':4, 'alpha':1.0})
 
