@@ -216,7 +216,7 @@ class CoupledModel:
 		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
-		print(big_AR1)
+		#print(big_AR1)
 		#big_AR1_log = np.log(big_AR1) if big_AR1>0 else -np.inf		
 		#print(log_likelihood, log_likelihood_T)
 		#log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
@@ -280,9 +280,10 @@ class CoupledModel:
 		#Check if converged. If not keep running. 
 		print(N)
 		for i in (range(N)):
+			if i > 1 and not i %1000: pd.DataFrame(mcmc_chains).to_csv('array_uncorr.csv')
 			#print(i)
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
-			if not i%200: time.sleep(.5)		
+			if not i%200: print(i)		
 			theta_new = list(np.random.multivariate_normal(theta, step))
 			#temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
 			#doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
