@@ -212,16 +212,18 @@ class CoupledModel:
 			bigcov -= 10*min_eig * np.eye(*bigcov.shape)
 		#print(bigcov)
 		#print(bigcov)
-		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
+		log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
 		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
-		big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
+		#big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
 		#print(big_AR1)
 		#big_AR1_log = np.log(big_AR1) if big_AR1>0 else -np.inf		
 		#print(log_likelihood, log_likelihood_T)
-		#log_posterior = log_prior + log_likelihood + log_likelihood_T + log_likelihood_O
-		if big_AR1 == -np.inf or np.isnan(big_AR1): return log_prior		
-		log_posterior = log_prior + big_AR1
+		if log_likelihood_T == -np.inf or np.isnan(log_likelihood_T): return log_prior
+		if log_likelihood_O == -np.inf or np.isnan(log_likelihood_O): return log_prior
+		log_posterior = log_prior + log_likelihood_T + log_likelihood_O
+		#if big_AR1 == -np.inf or np.isnan(big_AR1): return log_prior		
+		#log_posterior = log_prior + big_AR1
 		#print(log_posterior)
 		return log_posterior
 
