@@ -50,6 +50,7 @@ temp = pd.read_csv('array_correlated.csv')
 indices = [str(i) for i in range(0,16)]
 temp = temp[indices]
 mcmc_chain = temp.values
+mcmc_chain = mcmc_chain[:1000]
 mcmc_big = temp.values
 NUMBER = len(mcmc_chain)
 
@@ -57,7 +58,7 @@ temp = pd.read_csv('array_uncorr.csv')
 indices = [str(i) for i in range(0,13)]
 temp = temp[indices]
 mcmc_chain_uncorr = temp.values
-mcmc_chain = mcmc_chain_uncorr[:1000]
+#mcmc_chain = mcmc_chain_uncorr[:2000]
 mcmc_big_uncorr = temp.values
 
 
@@ -107,85 +108,4 @@ while burn_in < len(mcmc_chain1):
 	burn_in += len(mcmc_chain1)//100
 #R.append(diagnostic(mcmc_chains[:,burn_in:,:]))
 '''
-low = np.percentile(mcmc_chain[150000:], 5, axis = 0)
-high = np.percentile(mcmc_chain[150000:], 95, axis = 0)
-med = np.mean(mcmc_chain, axis = 0)
-forcing = pd.read_csv( 'data/forcing_rcp45.csv')	
-mod_time = np.array(range(1880,2100))
 
-forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=med[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
-doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=med[5], kappa=med[6])
-temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
-temp_out -= med[8]
-gmsl_out = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_out = np.interp(gmsl_out, (np.min(gmsl_out), np.max(gmsl_out)), (-100, 150))
-#plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_out)))
-plt.plot(x, gmsl_out, 'k', color='#3498DB', linewidth=5, label="RCP 4.5")
-
-
-forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=low[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
-doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=low[5], kappa=low[6])
-temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
-temp_out -= low[8]
-gmsl_outl = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_outl = np.interp(gmsl_outl, (np.min(gmsl_outl), np.max(gmsl_outl)), (-100, 185))
-#plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_out)))
-
-forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=high[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
-doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=high[5], kappa=high[6])
-temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
-temp_out -= high[8]
-gmsl_outh = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_outh = np.interp(gmsl_outh, (np.min(gmsl_outh), np.max(gmsl_outh)), (-100, 100))
-#plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_out)))
-
-plt.fill_between(x, gmsl_outl, gmsl_outh,
-    alpha=0.5, edgecolor='#CC4F1B', facecolor='#3498DB')
-
-
-
-forcing = pd.read_csv( 'data/forcing_rcp85.csv')	
-mod_time = np.array(range(1880,2100))
-
-forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=med[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
-doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=med[5], kappa=med[6])
-temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
-temp_out -= med[8]
-gmsl_out = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_out = np.interp(gmsl_out, (np.min(gmsl_out), np.max(gmsl_out)), (-100, 250))
-#plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_out)))
-plt.plot(x, gmsl_out, 'k', color='#CC4F1B', linewidth=5, label="RCP 8.5")
-#noise = [np.random.uniform(i-20, i+20) for i in gmsl_outm]
-#plt.scatter(x, noise)
-forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=low[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
-doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=low[5], kappa=low[6])
-temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
-temp_out -= low[8]
-gmsl_outl = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_outl = np.interp(gmsl_outl, (np.min(gmsl_outl), np.max(gmsl_outl)), (-100, 300))
-#plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_out)))
-
-forcingtotal = forcing_total.forcing_total(forcing=forcing, alpha_doeclim=high[7], l_project=True, begyear=mod_time[0], endyear=np.max(mod_time))
-doeclim_out = doeclimF.doeclimF(forcingtotal, mod_time, S=high[5], kappa=high[6])
-temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2100), "temp"]).tolist())
-temp_out -= high[8]
-gmsl_outh = gmsl_model.gmsl_model(med, temp_out, 1)
-gmsl_outh = np.interp(gmsl_outh, (np.min(gmsl_outh), np.max(gmsl_outh)), (-100, 180))
-#plt.rcParams.update(plt.rcParamsDefault)
-x = list(range(1880, 1880+len(gmsl_out)))
-
-plt.fill_between(x, gmsl_outl, gmsl_outh,
-    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')
-#plt.fill_between(x, gmsl_outl, gmsl_outh,
-#    alpha=0.5, edgecolor='#CC4F1B', facecolor='#FF9848')
-plt.grid(True)
-plt.ylabel('Sea-level (mm)')
-plt.xlabel('Year')
-plt.legend()
-plt.savefig('gmsl.png')
-plt.show()
