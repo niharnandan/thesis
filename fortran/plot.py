@@ -57,7 +57,7 @@ temp = pd.read_csv('array_uncorr.csv')
 indices = [str(i) for i in range(0,13)]
 temp = temp[indices]
 mcmc_chain_uncorr = temp.values
-mcmc_chain = mcmc_chain_uncorr[:3000]
+mcmc_chain = mcmc_chain_uncorr[:11000]
 mcmc_big_uncorr = temp.values
 
 
