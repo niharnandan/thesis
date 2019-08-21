@@ -53,7 +53,7 @@ class CoupledModel:
 		dfSealevel = pd.read_csv('GMSL_ChurchWhite2011_yr_2015.csv')
 		dfTemperature = pd.read_csv('NOAA_IPCC_RCPtempsscenarios.csv')
 		dfOcean_heat = pd.read_csv('gouretski_ocean_heat_3000m.txt', sep= ' ')
-		self.sealevel = np.array((dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).tolist()) - (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).mean()
+		self.sealevel = np.array((dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "sealevel"]).tolist()) - (dfSealevel.loc[(dfSealevel["year"]>=1961) & (dfSealevel["year"]<=1990), "sealevel"]).mean()
 		self.year = (dfSealevel.loc[(dfSealevel["year"] >= 1880) & (dfSealevel["year"]<=2009), "year"]).tolist()
 		self.sealevel_sigma = (dfSealevel.loc[(dfSealevel["year"]>=1880) & (dfSealevel["year"]<=2009), "uncertainty"]).tolist()
 		self.dfTemperature = dfTemperature.loc[(dfTemperature["Time"] <= 2008) & (dfTemperature["Time"] >= 1880), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"] - dfTemperature.loc[(dfTemperature["Time"] <= 1990) & (dfTemperature["Time"] >= 1961), "Historical NOAA temp & CNRM RCP 8.5 with respect to 20th century"].mean()
@@ -130,19 +130,19 @@ class CoupledModel:
 			theta[0], theta[1], theta[2], theta[3], theta[4])
 		log_prior = 0
 		if (self.alpha): log_prior += stats.uniform.logpdf(alpha, loc = 0, scale = 5) #lb and ub?
-		if (self.Teq): log_prior +=  stats.uniform.logpdf(Teq, loc=-3, scale = 4)
-		if (self.S0): log_prior +=  stats.uniform.logpdf(S0, loc = self.sealevel[0]-(3*self.sealevel_sigma[0]), scale = 6*self.sealevel_sigma[0])
-		if (self.rho): log_prior +=  stats.uniform.logpdf(rho, loc = 0, scale = 1)
-		if (self.sigma_ar): log_prior +=  stats.uniform.logpdf(sigma_ar, loc = 0, scale = 5)
+		if (self.Teq): log_prior +=  stats.uniform.logpdf(Teq, loc=-1, scale = 2)
+		if (self.S0): log_prior +=  stats.uniform.logpdf(S0, loc = -175, scale = 50)
+		if (self.rho): log_prior +=  stats.uniform.logpdf(rho, loc = 0.1, scale = 1)
+		if (self.sigma_ar): log_prior +=  stats.uniform.logpdf(sigma_ar, loc = 0.1, scale = 5)
 		if (self.climate_sensitivity): log_prior +=  stats.uniform.logpdf(theta[5], loc = 0.1, scale = 9.9)
 		if (self.ocean_vertical_diffusivity): log_prior +=  stats.uniform.logpdf(theta[6], loc = 0.1, scale = 3.9)
-		if (self.aerosol_scaling): log_prior +=  stats.uniform.logpdf(theta[7], loc = 0, scale = 2)
+		if (self.aerosol_scaling): log_prior +=  stats.uniform.logpdf(theta[7], loc = 0.1, scale = 2)
 		if (self.T_0): log_prior +=  stats.uniform.logpdf(theta[8], loc = -0.3, scale = 0.6)
 		if (self.sigma_T): log_prior +=  stats.uniform.logpdf(theta[9], loc = 0.05, scale = 4.95)
-		if (self.rho_T): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0, scale = 0.999)
+		if (self.rho_T): log_prior +=  stats.uniform.logpdf(theta[10], loc =  0.1, scale = 0.999)
 
 		if (self.sigma_O): log_prior +=  stats.uniform.logpdf(theta[11], loc = 0.05, scale = 4.95)
-		if (self.rho_O): log_prior +=  stats.uniform.logpdf(theta[12], loc =  0, scale = 0.999)
+		if (self.rho_O): log_prior +=  stats.uniform.logpdf(theta[12], loc =  0.1, scale = 0.999)
 
 
 		#print(log_prior)
@@ -159,7 +159,8 @@ class CoupledModel:
 	def logp(self, theta, deltat, temperatures, model, ocheat):
 
 		log_prior = self.prior(theta)
-		if np.isinf(log_prior): return log_prior
+		if np.isinf(log_prior):
+			return log_prior
 		N = len(self.sealevel)
 		#rho, sigma_ar = 0.5, 3
 		#rho_t, sigma_t = 0.55, 1
@@ -193,7 +194,7 @@ class CoupledModel:
 		#cov = np.multiply((np.transpose(cov) + cov), 1/2)
 		
 		#cov = sigma_obs
-		#log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
+		log_likelihood = stats.multivariate_normal.logpdf(resid, mean = None, cov=cov)
 		cov_T = np.add(sigma_obs_T,sigma_ar1_T)
 		#cov_T = np.multiply((np.transpose(cov_T) + cov_T), 1/2)
 		
@@ -212,17 +213,18 @@ class CoupledModel:
 			bigcov -= 10*min_eig * np.eye(*bigcov.shape)
 		#print(bigcov)
 		#print(bigcov)
-		log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
-		log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
+		#log_likelihood_T = stats.multivariate_normal.logpdf(t_residual, mean= None, cov=cov_T)
+		#log_likelihood_O = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#log_likelihood_T = stats.multivariate_normal.logpdf(o_residual, mean= None, cov=cov_O)		
 		#big_AR1 = stats.multivariate_normal.logpdf(np.concatenate((resid,t_residual,o_residual)) , mean=None, cov=bigcov)
 		#print(big_AR1)
 		#big_AR1_log = np.log(big_AR1) if big_AR1>0 else -np.inf		
 		#print(log_likelihood, log_likelihood_T)
-		if log_likelihood_T == -np.inf or np.isnan(log_likelihood_T): return log_prior
-		if log_likelihood_O == -np.inf or np.isnan(log_likelihood_O): return log_prior
-		log_posterior = log_prior + log_likelihood_T + log_likelihood_O
+		#if log_likelihood_T == -np.inf or np.isnan(log_likelihood_T): return log_prior
+		#if log_likelihood_O == -np.inf or np.isnan(log_likelihood_O): return log_prior
+		log_posterior = log_prior + log_likelihood #+ log_likelihood_O
 		#if big_AR1 == -np.inf or np.isnan(big_AR1): return log_prior		
+		#print(log_prior,big_AR1)		
 		#log_posterior = log_prior + big_AR1
 		#print(log_posterior)
 		return log_posterior
@@ -268,8 +270,7 @@ class CoupledModel:
 		ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]	
 		temp_out += self.T_0
 		gmsl_out = gmsl_model.gmsl_model(theta, temp_out, 1)
-
-		lp = self.logp(theta, deltat, temp_out, gmsl_out, ocheat)
+		lp = self.logp(theta, deltat, self.dfTemperature, gmsl_out, ocheat)
 		theta_best = theta
 		lp_max = lp
 		theta_new = [0.] * len(theta)
@@ -285,8 +286,9 @@ class CoupledModel:
 			if i > 1 and not i %1000: pd.DataFrame(mcmc_chains).to_csv('array_uncorr.csv')
 			#print(i)
 			if i > 500: step = self.update_cov(mcmc_chains[:i], sd, len(theta))
-			if not i%200: print(i)		
+			if not i%200: print(accepts)		
 			theta_new = list(np.random.multivariate_normal(theta, step))
+			theta_new [5:] = [3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 3, 0.5]
 			#temp_out, heatflux_mixed_out, heatflux_interior_out, gmsl_out = \
 			#doeclim_gmsl(asc = theta[7], t2co_in = theta[5], kappa_in=theta[6], alphasl_in = theta[0], Teq = theta[1], SL0 = theta[2], forcing=self.forcing) 
 			#temp_out += theta[8]
@@ -296,16 +298,16 @@ class CoupledModel:
 			temp_out = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), "temp"]).tolist())
 			temp_out += theta[8]
 			ocheat = np.array((doeclim_out.loc[(doeclim_out["time"]>=1880) & (doeclim_out["time"]<=2008), 'ocheat.mixed']).tolist())
-			gmsl_out = gmsl_model.gmsl_model(theta, temp_out, 1)
+			gmsl_out = gmsl_model.gmsl_model(theta, self.dfTemperature, 1)
 			ocheat = ocheat[self.offset[0]:self.offset[0]+ 44]
 			lp_new = self.logp(theta_new, deltat, temp_out, gmsl_out, ocheat)
 			if np.isinf(lp_new):
 				mcmc_chains[i,:] = theta
 				continue
 			#print(lp, lp_new, 'difference')
-			lq = np.abs(lp_new - lp)
+			lq = lp_new - lp
 			
-			lr = np.log(np.random.uniform(1,2))
+			lr = np.log(np.random.uniform(0,1))
 			#print(lr, lq)
 			if (lr < lq):
 				theta = theta_new
@@ -323,7 +325,7 @@ class CoupledModel:
 #'sigma_ar': 3, 'climate_sensitivity': 3.1, 'ocean_vertical_diffusivity': 3.5, \
 #'aerosol_scaling': 1.1, 'T_0': -0.06, 'sigma_T': 0.1, 'rho_T': 0.55}
 
-values = [3.4, -0.5, -100, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 3, 0.5]
+values = [3.4, -0.5, -125, .5, 3, 3.1, 3.5, 1.1, -0.06, 0.1, 0.55, 3, 0.5]
 #values = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
 #values = [3.4, -0.5, -100, 3.1, 3.5, 1.1, -0.06]
 

@@ -50,7 +50,7 @@ temp = pd.read_csv('array_correlated.csv')
 indices = [str(i) for i in range(0,16)]
 temp = temp[indices]
 mcmc_chain = temp.values
-mcmc_chain = mcmc_chain[:2500]
+mcmc_chain = mcmc_chain[:1000]
 mcmc_big = temp.values
 NUMBER = len(mcmc_chain)
 
@@ -58,7 +58,7 @@ temp = pd.read_csv('array_uncorr.csv')
 indices = [str(i) for i in range(0,13)]
 temp = temp[indices]
 mcmc_chain_uncorr = temp.values
-#mcmc_chain = mcmc_chain_uncorr[:2000]
+mcmc_chain = mcmc_chain_uncorr[:2000]
 mcmc_big_uncorr = temp.values
 
 
