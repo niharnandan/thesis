@@ -54,12 +54,11 @@ mcmc_chain = mcmc_chain[:1000]
 mcmc_big = temp.values
 NUMBER = len(mcmc_chain)
 
-temp = pd.read_csv('array_uncorr.csv')
+temp = pd.read_csv('array_uncorr_temp.csv')
 indices = [str(i) for i in range(0,13)]
 temp = temp[indices]
 mcmc_chain_uncorr = temp.values
-mcmc_chain = mcmc_chain_uncorr[:2000]
-mcmc_big_uncorr = temp.values
+mcmc_chain = mcmc_chain_uncorr
 
 
 
@@ -79,9 +78,9 @@ for i in range(13):
 	fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,4))  # create figure & 1 axis
 	ax.plot(mcmc_chain[: ,i])
 	ax.set_title(pamnamesc[i])
-	fig.savefig('image/plot_'+pamnames[i]+'.png')   # save the figure to file
+	fig.savefig('image/plot_'+pamnamesc[i]+'.png')   # save the figure to file
 	plt.close(fig)
-
+mcmc_chain = mcmc_chain[25000::100]
 for i in range(13):
 	#if i == 5: continue
 	fig, ax = plt.subplots(nrows=1, ncols=1 )  # create figure & 1 axis

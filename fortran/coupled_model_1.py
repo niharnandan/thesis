@@ -336,7 +336,7 @@ mcmc_chain,accept_rate = CM.chain(1, NUMBER)
 print(accept_rate)
 pd.DataFrame(mcmc_chain).to_csv('array_uncorr.csv')
 pamnames = ['alpha', 'Teq', 'S0', 'rho', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0' \
-, 'sigma_T', 'rho_T', 'sigmatsl', 'sigma_O', 'rho_O', 'sigmaslo', 'sigmaot']
+, 'sigma_T', 'rho_T', 'sigma_O', 'rho_O']
 #pamnames = ['alpha', 'Teq', 'sigma_ar', 'climate_sensitivity', 'ocean_vertical_diffusivity', 'aerosol_scaling', 'T_0']
 
 #print(mcmc_chain[:200,0])
